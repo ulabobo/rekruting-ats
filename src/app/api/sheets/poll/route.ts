@@ -43,8 +43,11 @@ export async function POST() {
       anyReadable = true;
 
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      for (let i = 1; i < lines.length; i++) {
+      for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
+        if (cols[0]?.toLowerCase() === "viloyat" || cols[2]?.toLowerCase() === "lavozim") {
+          continue;
+        }
         const position = cols[2];
         if (!position) continue;
 

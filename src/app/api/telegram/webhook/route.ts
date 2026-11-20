@@ -316,22 +316,41 @@ export async function POST(req: NextRequest) {
       }
 
       if (data === "back:reg") {
+        const { data: openVacs } = await sb
+          .from("ats_vacancies")
+          .select("region")
+          .in("status", ["open", "accepted"]);
+        const regions = Array.from(
+          new Set((openVacs || []).map((v) => v.region).filter(Boolean))
+        ) as string[];
         await editOrSend(
           token,
           chatId,
           msgId,
-          "Qaysi hududda (yoki Bosh ofis / Ombor) ishlamoqchisiz?",
+          "Qaysi hududda ishlamoqchisiz? Hududni tanlang:",
           {
-            inline_keyboard: REGIONS.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+            inline_keyboard: [
+              ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+              [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
+            ],
           }
         );
         return NextResponse.json({ ok: true });
       }
 
-      // 1. Viloyat / Bosh ofis / Toshkent ombor tanlandi
+      // 1. Viloyat / Hudud tanlandi -> Shu hududdagi shaharlarni dinamik olish
       if (data.startsWith("reg:")) {
         const region = data.replace("reg:", "");
-        const cities = CITIES_BY_REGION[region] || ["Toshkent"];
+        const { data: regionVacs } = await sb
+          .from("ats_vacancies")
+          .select("city")
+          .in("status", ["open", "accepted"])
+          .eq("region", region);
+
+        const cities = Array.from(
+          new Set((regionVacs || []).map((v) => v.city).filter(Boolean))
+        ) as string[];
+
         sessions.set(chatId, { mode: "apply", step: "idle", region, answers: { region } });
         await editOrSend(
           token,
@@ -348,7 +367,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 2. Shahar tanlandi -> Filiallarni chiqarish
+      // 2. Shahar tanlandi -> Shu hudud va shahardagi filiallarni dinamik olish
       if (data.startsWith("city:")) {
         const city = data.replace("city:", "");
         const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
@@ -356,11 +375,15 @@ export async function POST(req: NextRequest) {
         st.answers.city = city;
         sessions.set(chatId, st);
 
-        const { data: vacs } = await sb
+        let query = sb
           .from("ats_vacancies")
           .select("*")
           .in("status", ["open", "accepted"])
           .ilike("city", city);
+        if (st.region) {
+          query = query.eq("region", st.region);
+        }
+        const { data: vacs } = await query;
 
         if (vacs && vacs.length > 0) {
           const branches = Array.from(new Set(vacs.map((v) => v.branch)));
@@ -372,7 +395,7 @@ export async function POST(req: NextRequest) {
             {
               inline_keyboard: [
                 ...branches.map((b) => [{ text: `🏢 ${b}`, callback_data: `branch:${b}` }]),
-                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || "Toshkent shahri"}` }],
+                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
               ],
             }
           );
@@ -386,7 +409,7 @@ export async function POST(req: NextRequest) {
             {
               inline_keyboard: [
                 [{ text: "📝 Anketani to'ldirish", callback_data: `reserve:${city}` }],
-                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || "Toshkent shahri"}` }],
+                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
               ],
             }
           );
@@ -394,7 +417,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 3. Filial tanlandi -> Lavozimlar
+      // 3. Filial tanlandi -> Shu filialdagi barcha ochiq/qabul qilingan lavozimlar
       if (data.startsWith("branch:")) {
         const branch = data.replace("branch:", "");
         const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
@@ -416,9 +439,12 @@ export async function POST(req: NextRequest) {
           {
             inline_keyboard: [
               ...(vacs || []).map((v) => [
-                { text: `💼 ${v.position} (${v.salary_band})`, callback_data: `vac:${v.id}` },
+                {
+                  text: `💼 ${v.position} (${v.headcount} ta o'rin)`,
+                  callback_data: `vac:${v.id}`,
+                },
               ]),
-              [{ text: "⬅️ Orqaga", callback_data: `city:${st.city || "Toshkent"}` }],
+              [{ text: "⬅️ Orqaga", callback_data: `city:${st.city || ""}` }],
             ],
           }
         );
@@ -595,11 +621,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === "📋 Bo'sh ish o'rinlari") {
+      const { data: openVacs } = await sb
+        .from("ats_vacancies")
+        .select("region")
+        .in("status", ["open", "accepted"]);
+      const regions = Array.from(
+        new Set((openVacs || []).map((v) => v.region).filter(Boolean))
+      ) as string[];
+
       await tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "Qaysi hududda (yoki Bosh ofis / Ombor) ishlamoqchisiz?",
+        text:
+          regions.length > 0
+            ? "Qaysi hududda ishlamoqchisiz? Hududni tanlang:"
+            : "Hozircha ochiq vakansiyalar mavjud emas, ammo umumiy ariza qoldirishingiz mumkin:",
         reply_markup: {
-          inline_keyboard: REGIONS.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+          inline_keyboard: [
+            ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+            [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
+          ],
         },
       });
       return NextResponse.json({ ok: true });

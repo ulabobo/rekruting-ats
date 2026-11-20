@@ -230,23 +230,29 @@ export default function AtsDashboard({
   };
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#f6f5f1] text-zinc-900">
+    <div
+      className="relative flex h-screen overflow-hidden text-slate-900"
+      style={{
+        background:
+          "radial-gradient(circle at 10% 90%, rgba(108,114,255,0.14) 0%, transparent 45%), radial-gradient(circle at 85% 15%, rgba(78,165,255,0.16) 0%, transparent 50%), #f1f5fb",
+      }}
+    >
       <ParticleBackground />
-      {/* Sidebar - Corporate Graphite */}
-      <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 text-zinc-100">
-        <div className="flex items-center gap-2.5 border-b border-zinc-800 px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-lg font-black text-white">
-            A
+      {/* Sidebar - Clean Frosted White matching Login Design */}
+      <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-md">
+        <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5865f2] text-lg font-black text-white shadow-sm shadow-[#5865f2]/30">
+            R
           </div>
           <div>
-            <p className="text-base font-extrabold tracking-tight text-white">{t.appName}</p>
-            <p className="text-[10px] font-medium text-zinc-400">{t.appSubtitle}</p>
+            <p className="text-base font-extrabold tracking-tight text-slate-900">{t.appName}</p>
+            <p className="text-[10px] font-medium text-slate-400">{t.appSubtitle}</p>
           </div>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
           <div>
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {t.directionsGroup}
             </p>
             <div className="space-y-1">
@@ -272,8 +278,8 @@ export default function AtsDashboard({
                     }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${
                       isActive
-                        ? "bg-teal-600 text-white shadow-sm"
-                        : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                        ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                        : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                     }`}
                   >
                     <span className="flex items-center gap-2.5 truncate">
@@ -282,7 +288,7 @@ export default function AtsDashboard({
                     </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        isActive ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-300"
+                        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {count}
@@ -294,7 +300,7 @@ export default function AtsDashboard({
           </div>
 
           <div>
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {t.managementGroup}
             </p>
             <div className="space-y-1">
@@ -302,15 +308,21 @@ export default function AtsDashboard({
                 onClick={() => setActiveNav({ kind: "vacancies" })}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                   activeNav.kind === "vacancies"
-                    ? "bg-teal-600 text-white"
-                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <Briefcase className="h-4 w-4" />
                   {t.vacanciesNav}
                 </span>
-                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    activeNav.kind === "vacancies"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
                   {db.vacancies.filter((v) => v.status === "open").length}
                 </span>
               </button>
@@ -319,15 +331,21 @@ export default function AtsDashboard({
                 onClick={() => setActiveNav({ kind: "all_candidates" })}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                   activeNav.kind === "all_candidates"
-                    ? "bg-teal-600 text-white"
-                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                 }`}
               >
                 <span className="flex items-center gap-2.5">
                   <Users className="h-4 w-4" />
                   {t.allCandidatesNav}
                 </span>
-                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    activeNav.kind === "all_candidates"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
                   {db.applications.length}
                 </span>
               </button>
@@ -336,8 +354,8 @@ export default function AtsDashboard({
                 onClick={() => setActiveNav({ kind: "analytics" })}
                 className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                   activeNav.kind === "analytics"
-                    ? "bg-teal-600 text-white"
-                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                 }`}
               >
                 <BarChart3 className="h-4 w-4" />
@@ -348,8 +366,8 @@ export default function AtsDashboard({
                 onClick={() => setActiveNav({ kind: "integrations" })}
                 className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                   activeNav.kind === "integrations"
-                    ? "bg-teal-600 text-white"
-                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                 }`}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -361,8 +379,8 @@ export default function AtsDashboard({
                   onClick={() => setActiveNav({ kind: "settings" })}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                     activeNav.kind === "settings"
-                      ? "bg-teal-600 text-white"
-                      : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                      ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                   }`}
                 >
                   <Settings className="h-4 w-4" />
@@ -373,11 +391,11 @@ export default function AtsDashboard({
           </div>
         </nav>
 
-        <div className="border-t border-zinc-800 p-3">
-          <div className="flex items-center justify-between rounded-xl bg-zinc-800/80 p-3">
+        <div className="border-t border-slate-100 p-3">
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
             <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-white">{currentUser.fullName}</p>
-              <p className="truncate text-[10px] text-zinc-400">{currentUser.position}</p>
+              <p className="truncate text-xs font-bold text-slate-900">{currentUser.fullName}</p>
+              <p className="truncate text-[10px] text-slate-500">{currentUser.position}</p>
             </div>
             <button
               onClick={async () => {
@@ -385,7 +403,7 @@ export default function AtsDashboard({
                 setCurrentUser(null);
               }}
               title={t.logout}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-700 hover:text-rose-400"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-rose-600"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -395,7 +413,7 @@ export default function AtsDashboard({
 
       {/* Main Content */}
       <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex items-center justify-between border-b border-slate-200/80 bg-white/85 px-6 py-3 backdrop-blur-md">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -413,7 +431,7 @@ export default function AtsDashboard({
               <button
                 onClick={() => setLang("uz")}
                 className={`rounded-lg px-2.5 py-1 ${
-                  lang === "uz" ? "bg-blue-600 text-white" : "text-slate-600"
+                  lang === "uz" ? "bg-[#5865f2] text-white" : "text-slate-600"
                 }`}
               >
                 UZ
@@ -421,7 +439,7 @@ export default function AtsDashboard({
               <button
                 onClick={() => setLang("ru")}
                 className={`rounded-lg px-2.5 py-1 ${
-                  lang === "ru" ? "bg-blue-600 text-white" : "text-slate-600"
+                  lang === "ru" ? "bg-[#5865f2] text-white" : "text-slate-600"
                 }`}
               >
                 RU

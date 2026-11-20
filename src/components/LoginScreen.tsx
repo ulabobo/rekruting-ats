@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, LogIn, User as UserIcon } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Language, User } from "@/types/ats";
 import { UI_TEXT } from "@/lib/i18n";
 import ParticleBackground from "@/components/ParticleBackground";
@@ -18,6 +18,7 @@ export default function LoginScreen({
   const t = UI_TEXT[lang];
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -45,91 +46,104 @@ export default function LoginScreen({
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#f6f5f1] p-4">
+    <div
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4"
+      style={{
+        background:
+          "radial-gradient(circle at 12% 85%, #6c72ff 0%, transparent 48%), radial-gradient(circle at 30% 15%, #4ea5ff 0%, transparent 50%), radial-gradient(circle at 90% 45%, #c7e2f8 0%, #dbeafe 100%)",
+      }}
+    >
       <ParticleBackground />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-zinc-200 bg-white/95 p-8 shadow-lg backdrop-blur-xs">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-700 text-lg font-black text-white">
-              A
-            </div>
-            <div>
-              <h1 className="text-lg font-extrabold text-slate-900">{t.appName}</h1>
-              <p className="text-[11px] text-slate-500">{t.appSubtitle}</p>
-            </div>
-          </div>
 
-          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => onChangeLang("uz")}
-              className={`rounded-md px-2.5 py-1 ${
-                lang === "uz" ? "bg-blue-600 text-white" : "text-slate-600"
-              }`}
-            >
-              UZ
-            </button>
-            <button
-              type="button"
-              onClick={() => onChangeLang("ru")}
-              className={`rounded-md px-2.5 py-1 ${
-                lang === "ru" ? "bg-blue-600 text-white" : "text-slate-600"
-              }`}
-            >
-              RU
-            </button>
+      {/* Top bar: Language switcher */}
+      <div className="relative z-10 mb-6 flex w-full max-w-md items-center justify-between px-2">
+        <div className="flex items-center gap-2 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-sm font-black backdrop-blur-md">
+            R
           </div>
+          <span className="text-sm font-bold tracking-wide">{t.appName}</span>
         </div>
 
-        <h2 className="text-base font-bold text-slate-900">{t.loginTitle}</h2>
-        <p className="mb-5 mt-1 text-xs text-slate-500">{t.loginSubtitle}</p>
+        <div className="flex rounded-xl bg-white/25 p-0.5 text-xs font-bold text-white backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => onChangeLang("uz")}
+            className={`rounded-lg px-2.5 py-1 transition ${
+              lang === "uz" ? "bg-white text-[#5865f2]" : "text-white/90 hover:text-white"
+            }`}
+          >
+            UZ
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeLang("ru")}
+            className={`rounded-lg px-2.5 py-1 transition ${
+              lang === "ru" ? "bg-white text-[#5865f2]" : "text-white/90 hover:text-white"
+            }`}
+          >
+            RU
+          </button>
+        </div>
+      </div>
+
+      {/* Center White Card (Rasmdagidek) */}
+      <div className="relative z-10 w-full max-w-[400px] rounded-3xl bg-white px-8 py-9 shadow-[0_24px_60px_rgba(30,58,138,0.16)]">
+        <div className="mb-6 text-center">
+          <h1 className="text-xl font-extrabold text-slate-900">
+            {lang === "ru" ? "Добро пожаловать!" : "Xush kelibsiz!"}
+          </h1>
+          <p className="mt-1 text-xs text-slate-400">{t.loginSubtitle}</p>
+        </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+          <div className="mb-4 rounded-xl bg-rose-50 px-3.5 py-2.5 text-center text-xs font-semibold text-rose-600">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-700">
               {t.loginLabel}
             </label>
-            <div className="relative">
-              <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                required
-                value={login}
-                onChange={(e) => setLogin(e.target.value)}
-                placeholder="admin"
-                className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+            <input
+              required
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              placeholder={lang === "ru" ? "Введите логин" : "Loginingizni kiriting"}
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-[#5865f2] focus:outline-none"
+            />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-700">
               {t.passwordLabel}
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 required
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
-                className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-slate-200 py-2.5 pl-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-300 focus:border-[#5865f2] focus:outline-none"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label="Parolni ko'rish"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 py-2.5 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50"
+            className="mt-2 w-full rounded-xl bg-[#5865f2] py-2.5 text-sm font-bold text-white shadow-md shadow-[#5865f2]/25 transition hover:bg-[#4752c4] disabled:opacity-50"
           >
-            <LogIn className="h-4 w-4" />
             {loading ? "..." : t.loginButton}
           </button>
         </form>

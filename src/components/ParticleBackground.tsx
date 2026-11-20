@@ -26,7 +26,7 @@ export default function ParticleBackground() {
 
     const mouse = { x: -9999, y: -9999, active: false };
     const count = Math.min(75, Math.floor((width * height) / 18000));
-    const colors = ["rgba(15, 118, 110, 0.35)", "rgba(82, 82, 91, 0.25)", "rgba(20, 184, 166, 0.3)"];
+    const colors = ["rgba(88, 101, 242, 0.35)", "rgba(59, 130, 246, 0.28)", "rgba(148, 163, 184, 0.3)"];
 
     const particles: Particle[] = Array.from({ length: count }, () => ({
       x: Math.random() * width,
@@ -102,7 +102,7 @@ export default function ParticleBackground() {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
-            ctx.strokeStyle = `rgba(15, 118, 110, ${0.12 * (1 - d / 115)})`;
+            ctx.strokeStyle = `rgba(88, 101, 242, ${0.14 * (1 - d / 115)})`;
             ctx.lineWidth = 0.8;
             ctx.stroke();
           }
@@ -115,7 +115,7 @@ export default function ParticleBackground() {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(mouse.x, mouse.y);
-            ctx.strokeStyle = `rgba(15, 118, 110, ${0.22 * (1 - dm / 140)})`;
+            ctx.strokeStyle = `rgba(88, 101, 242, ${0.24 * (1 - dm / 140)})`;
             ctx.lineWidth = 0.9;
             ctx.stroke();
           }

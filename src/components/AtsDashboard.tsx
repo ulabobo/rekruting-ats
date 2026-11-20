@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -90,15 +90,34 @@ export default function AtsDashboard({
   const [showMassModal, setShowMassModal] = useState(false);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [bannerMsg, setBannerMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [pushToasts, setPushToasts] = useState<
+    { id: string; title: string; message: string; type: "info" | "warning" | "success" | "action"; time: string }[]
+  >([]);
+  const seenNotifIds = useRef<Set<string>>(new Set(initialDb.notifications.map((n) => n.id)));
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
 
-  const showBanner = (type: "ok" | "err", text: string) => {
-    setBannerMsg({ type, text });
-    setTimeout(() => setBannerMsg(null), 5000);
+  const pushMobileToast = (
+    type: "info" | "warning" | "success" | "action",
+    title: string,
+    message: string
+  ) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    const time = new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
+    setPushToasts((prev) => [{ id, title, message, type, time }, ...prev].slice(0, 3));
+    setTimeout(() => {
+      setPushToasts((prev) => prev.filter((x) => x.id !== id));
+    }, 5000);
   };
 
-  // Avtomatik fon yangilanishi (har 60 soniyada)
+  const showBanner = (type: "ok" | "err", text: string) => {
+    pushMobileToast(
+      type === "ok" ? "success" : "warning",
+      type === "ok" ? (lang === "ru" ? "Успешно" : "Muvaffaqiyatli") : lang === "ru" ? "Внимание" : "Diqqat",
+      text
+    );
+  };
+
+  // Avtomatik fon yangilanishi (har 60 soniyada) + yangi bildirishnomalar uchun mobil push toast
   useEffect(() => {
     if (!currentUser) return;
     const timer = setInterval(async () => {
@@ -107,7 +126,16 @@ export default function AtsDashboard({
         const res = await fetch("/api/ats", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          if (data.db) setDb(data.db);
+          if (data.db) {
+            const incomingNotifs = (data.db as AtsDatabase).notifications || [];
+            for (const n of incomingNotifs) {
+              if (!n.read && !seenNotifIds.current.has(n.id)) {
+                seenNotifIds.current.add(n.id);
+                pushMobileToast(n.type, n.title, n.message);
+              }
+            }
+            setDb(data.db);
+          }
         }
       } catch {
         // tarmoq xatosida jim o'tadi
@@ -463,13 +491,19 @@ export default function AtsDashboard({
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 z-40 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
-                  <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-xs font-bold text-slate-900">
+                <div className="absolute right-0 z-40 mt-2 w-80 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                  <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-xs font-extrabold text-slate-900">
                       {lang === "ru" ? "Уведомления" : "Bildirishnomalar"}
                     </span>
                     <button
                       onClick={async () => {
+                        // Darhol optimistik yangilash (qotib qolmasligi uchun)
+                        setDb((prev) => ({
+                          ...prev,
+                          notifications: prev.notifications.map((n) => ({ ...n, read: true })),
+                        }));
+                        setShowNotifications(false);
                         const res = await fetch("/api/ats", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -478,32 +512,65 @@ export default function AtsDashboard({
                         const data = await res.json();
                         if (data.db) setDb(data.db);
                       }}
-                      className="text-[11px] font-semibold text-blue-600"
+                      className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-[#3b6ff5] hover:bg-blue-100"
                     >
                       {lang === "ru" ? "Прочитать все" : "O'qildi"}
                     </button>
                   </div>
-                  <div className="max-h-64 space-y-2 overflow-y-auto">
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
                     {db.notifications.length === 0 ? (
                       <p className="py-4 text-center text-xs text-slate-400">—</p>
                     ) : (
-                      db.notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (n.relatedApplicationId) {
-                              setSelectedAppId(n.relatedApplicationId);
-                              setShowNotifications(false);
-                            }
-                          }}
-                          className={`cursor-pointer rounded-xl p-2.5 text-xs ${
-                            n.read ? "bg-slate-50" : "bg-blue-50"
-                          }`}
-                        >
-                          <p className="font-bold text-slate-800">{n.title}</p>
-                          <p className="mt-0.5 text-[11px] text-slate-600">{n.message}</p>
-                        </div>
-                      ))
+                      db.notifications.map((n) => {
+                        const iconBg =
+                          n.type === "warning"
+                            ? "bg-rose-500"
+                            : n.type === "success"
+                            ? "bg-emerald-500"
+                            : "bg-[#3b6ff5]";
+                        return (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              setDb((prev) => ({
+                                ...prev,
+                                notifications: prev.notifications.map((x) =>
+                                  x.id === n.id ? { ...x, read: true } : x
+                                ),
+                              }));
+                              if (n.relatedApplicationId) {
+                                setSelectedAppId(n.relatedApplicationId);
+                                setShowNotifications(false);
+                              }
+                            }}
+                            className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-xs transition ${
+                              n.read
+                                ? "border-slate-100 bg-slate-50/70 opacity-75"
+                                : "border-white bg-gradient-to-r from-white to-blue-50/60 shadow-sm"
+                            }`}
+                          >
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white ${iconBg}`}
+                            >
+                              <Bell className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <p className="truncate font-bold text-slate-900">{n.title}</p>
+                                <span className="shrink-0 text-[10px] text-slate-400">
+                                  {new Date(n.createdAt).toLocaleTimeString("uz-UZ", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">
+                                {n.message}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -512,16 +579,42 @@ export default function AtsDashboard({
           </div>
         </header>
 
-        {bannerMsg && (
-          <div
-            className={`mx-6 mt-3 flex items-center justify-between rounded-xl px-4 py-2 text-xs font-semibold text-white ${
-              bannerMsg.type === "ok" ? "bg-emerald-600" : "bg-rose-600"
-            }`}
-          >
-            <span>{bannerMsg.text}</span>
-            <button onClick={() => setBannerMsg(null)} className="underline">
-              ×
-            </button>
+        {/* Mobile App Style Top-Right Slide-In Notifications (5s auto-dismiss, Rasmdagidek) */}
+        {pushToasts.length > 0 && (
+          <div className="pointer-events-none fixed right-4 top-4 z-[60] flex w-80 flex-col gap-2.5">
+            {pushToasts.map((toast) => {
+              const iconBg =
+                toast.type === "warning"
+                  ? "bg-rose-500"
+                  : toast.type === "success"
+                  ? "bg-emerald-500"
+                  : "bg-[#3b6ff5]";
+              return (
+                <div
+                  key={toast.id}
+                  className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-white/95 via-white/90 to-sky-50/90 p-3.5 shadow-[0_14px_40px_rgba(15,23,42,0.14)] backdrop-blur-xl animate-in slide-in-from-right duration-300"
+                >
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-xs ${iconBg}`}
+                  >
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-extrabold text-slate-900">
+                        {toast.title}
+                      </p>
+                      <span className="shrink-0 text-[10px] font-medium text-slate-400">
+                        {toast.time}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">
+                      {toast.message}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

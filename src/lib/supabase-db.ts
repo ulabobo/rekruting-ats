@@ -874,7 +874,7 @@ export async function createReserveCandidate(input: {
         experience_years: input.experienceYears || null,
         telegram_chat_id: input.telegramChatId || null,
         telegram_username: input.telegramUsername || null,
-        tags: ["Zaxira", input.city],
+        tags: [input.city],
         questionnaire_data: input.questionnaireData || {},
       })
       .eq("id", candidateId);
@@ -895,13 +895,13 @@ export async function createReserveCandidate(input: {
       is_internal: false,
       telegram_chat_id: input.telegramChatId || null,
       telegram_username: input.telegramUsername || null,
-      tags: ["Zaxira", input.city],
+      tags: [input.city],
       questionnaire_data: input.questionnaireData || {},
     });
   }
 
-  // Zaxira bo'lsa ham baribir Qiziqish bildirganlar (otklik) ustuniga tushadi!
-  const reserveVacId = `vac-zaxira-${input.city.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  // Qiziqish bildirganlar (otklik) ustuniga tushadi
+  const reserveVacId = `vac-city-${input.city.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
   const { data: existingVac } = await sb
     .from("ats_vacancies")
     .select("id")
@@ -914,8 +914,8 @@ export async function createReserveCandidate(input: {
       track: "dokon_xodimi",
       region: input.region || input.city,
       city: input.city,
-      branch: input.branch || `${input.city} (Zaxira)`,
-      position: input.position || "Zaxira nomzod",
+      branch: input.branch || input.city,
+      position: input.position || "Umumiy ariza",
       shift: input.shift || "Kelishiladi",
       salary_band: "Shtat bo'yicha",
       headcount: 1,
@@ -934,7 +934,7 @@ export async function createReserveCandidate(input: {
     vacancy_id: reserveVacId,
     track: "dokon_xodimi",
     current_stage: "otklik",
-    status: "reserved",
+    status: "active",
     match_score: 75,
     assigned_recruiter_id: "u-admin",
     is_duplicate_warning: Boolean(existing),
@@ -945,13 +945,13 @@ export async function createReserveCandidate(input: {
     entityId: appId,
     actorId: "system",
     actorName: "Telegram Bot",
-    action: `Zaxira anketasi qabul qilindi (${input.city}) → Qiziqish bildirganlar`,
+    action: `Yangi ariza qabul qilindi (${input.city})`,
     newValue: "otklik",
   });
 
   await sb.from("ats_notifications").insert({
     id: uid("notif"),
-    title: `Zaxira nomzod (${input.city})`,
+    title: `Yangi nomzod (${input.city})`,
     message: `${input.fullName} (${phone}) — Qiziqish bildirganlar ustuniga tushdi.`,
     type: "info",
     related_application_id: appId,

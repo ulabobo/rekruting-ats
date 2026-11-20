@@ -397,15 +397,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Zaxira rejimi
+      // Zaxira rejimi (lekin Zaxira belgisisiz oddiy ariza sifatida)
       if (data.startsWith("reserve:")) {
         const city = data.replace("reserve:", "");
         const st = sessions.get(chatId) || { mode: "reserve", step: "hasExp", answers: {} };
         st.mode = "reserve";
         st.city = city;
         st.answers.city = city;
-        st.answers.branch = `${city} (Zaxira)`;
-        st.answers.position = "Zaxira nomzod";
+        st.answers.branch = city;
+        st.answers.position = "Umumiy ariza";
         st.step = "hasExp";
         sessions.set(chatId, st);
         await askNextQuestion(token, chatId, st);

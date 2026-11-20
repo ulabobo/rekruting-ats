@@ -1018,7 +1018,9 @@ export async function createReserveCandidate(input: {
 }
 
 export async function createVacancy(params: {
+  id?: string;
   track: TrackType;
+  region?: string;
   city?: string;
   branch: string;
   position: string;
@@ -1032,25 +1034,29 @@ export async function createVacancy(params: {
   actorName: string;
 }) {
   const sb = getSupabase();
-  const id = uid("vac");
+  const id = params.id || uid("vac");
   const city = params.city || "Toshkent";
-  await sb.from("ats_vacancies").insert({
-    id,
-    track: params.track,
-    city,
-    branch: params.branch,
-    position: params.position,
-    shift: params.shift || "To'liq kun",
-    salary_band: params.salaryBand,
-    headcount: params.headcount,
-    filled_count: 0,
-    sla_days: TRACK_CONFIGS[params.track].slaDays,
-    erp_request_id: params.erpRequestId || null,
-    mass_project_id: params.massProjectId || null,
-    responsible_recruiter_id: params.responsibleRecruiterId,
-    hiring_manager_name: params.hiringManagerName,
-    status: "open",
-  });
+  await sb.from("ats_vacancies").upsert(
+    {
+      id,
+      track: params.track,
+      region: params.region || "Toshkent shahri",
+      city,
+      branch: params.branch,
+      position: params.position,
+      shift: params.shift || "To'liq kun",
+      salary_band: params.salaryBand,
+      headcount: params.headcount,
+      filled_count: 0,
+      sla_days: TRACK_CONFIGS[params.track].slaDays,
+      erp_request_id: params.erpRequestId || null,
+      mass_project_id: params.massProjectId || null,
+      responsible_recruiter_id: params.responsibleRecruiterId,
+      hiring_manager_name: params.hiringManagerName,
+      status: "open",
+    },
+    { onConflict: "id" }
+  );
 
   await logAudit({
     entityType: "vacancy",
@@ -1204,18 +1210,23 @@ export async function syncErpStaffingRows(
     );
 
     const deficit = row.planCount - row.factCount;
+    const detId = `vac-sh-${`${row.branch}-${row.position}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")}`;
+
     const { data: existingVac } = await sb
       .from("ats_vacancies")
       .select("id, headcount, status")
-      .eq("branch", row.branch)
-      .eq("position", row.position)
-      .in("status", ["open", "accepted"])
+      .eq("id", detId)
       .maybeSingle();
 
     if (deficit > 0) {
-      if (!existingVac) {
+      if (!existingVac || existingVac.status === "closed") {
         await createVacancy({
+          id: detId,
           track: row.track,
+          region,
           city,
           branch: row.branch,
           position: row.position,
@@ -1224,8 +1235,8 @@ export async function syncErpStaffingRows(
           headcount: deficit,
           hiringManagerName: "Sheets ERP Shtat",
           responsibleRecruiterId: "u-admin",
-          erpRequestId: `SHEETS-${Date.now().toString().slice(-4)}`,
-          actorName: "Google Sheets ERP",
+          erpRequestId: `SHEETS-${detId.slice(-6).toUpperCase()}`,
+          actorName: "Google Sheets",
         });
 
         await sb.from("ats_notifications").insert({
@@ -1243,7 +1254,7 @@ export async function syncErpStaffingRows(
           .update({ headcount: deficit })
           .eq("id", existingVac.id);
       }
-    } else if (existingVac) {
+    } else if (existingVac && existingVac.status !== "closed") {
       // Shtat to'ldi (BAND >= SHTAT) -> vakansiyani avtomatik yopish
       await sb
         .from("ats_vacancies")

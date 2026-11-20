@@ -41,7 +41,16 @@ function mapTrack(raw: string | undefined, position: string, tab: string): Track
   return "dokon_xodimi";
 }
 
+let lastPollAt = 0;
+let pollInProgress = false;
+
 export async function POST() {
+  const now = Date.now();
+  if (pollInProgress || now - lastPollAt < 45000) {
+    return NextResponse.json({ ok: true, skipped: true });
+  }
+  pollInProgress = true;
+  lastPollAt = now;
   try {
     const collected: Omit<ErpStaffingRow, "id" | "updatedAt">[] = [];
     let anyReadable = false;
@@ -138,5 +147,7 @@ export async function POST() {
       { ok: false, error: err instanceof Error ? err.message : "Xatolik" },
       { status: 500 }
     );
+  } finally {
+    pollInProgress = false;
   }
 }

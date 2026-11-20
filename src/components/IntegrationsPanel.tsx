@@ -63,33 +63,27 @@ export default function IntegrationsPanel({
     }
   };
 
-  const appsScriptCode = `function onEdit(e) {
+  const appsScriptCode = `function setupDropdowns() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["Do'kon xodimlari", "Do'kon rahbarlari", "Ofis xodimlari", "Ommaviy yollash"], true)
+    .build();
+  ["Aura-1", "Aura-2", "Aura-3", "Aura-4", "Bosh ofis", "Toshkent ombor"].forEach(function(n) {
+    var sh = ss.getSheetByName(n);
+    if (!sh) return;
+    var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    var col = headers.findIndex(function(h) { return String(h).toLowerCase().indexOf("yonalish") !== -1; }) + 1;
+    if (col > 0) sh.getRange(2, col, 100, 1).setDataValidation(rule);
+  });
+}
+
+function onEdit(e) {
   var sheet = e.source.getActiveSheet();
   var name = sheet.getName();
   var allowed = ["Aura-1", "Aura-2", "Aura-3", "Aura-4", "Bosh ofis", "Toshkent ombor"];
   if (allowed.indexOf(name) === -1) return;
-  var row = e.range.getRow();
-  if (row < 2) return;
-  var vals = sheet.getRange(row, 1, 1, 7).getValues()[0];
-  UrlFetchApp.fetch("https://rekruting-ats.onrender.com/api/integrations/erp", {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify({
-      eventType: "ERP_STAFFING_SYNC",
-      rows: [{
-        sheetTab: name,
-        region: vals[0] || "Toshkent shahri",
-        city: vals[1] || "Toshkent",
-        branch: name,
-        position: vals[2],
-        track: vals[3] || "dokon_xodimi",
-        planCount: Number(vals[4]) || 0,
-        factCount: Number(vals[5]) || 0,
-        shift: vals[6] || "2/2 smena",
-        salaryBand: "Shtat bo'yicha"
-      }]
-    })
-  });
+  if (e.range.getRow() < 2) return;
+  UrlFetchApp.fetch("https://rekruting-ats.onrender.com/api/sheets/poll", { method: "post" });
 }`;
 
   return (

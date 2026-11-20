@@ -26,6 +26,21 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
+function mapTrack(raw: string | undefined, position: string, tab: string): TrackType {
+  const val = (raw || "").toLowerCase().trim();
+  if (val.includes("rahbar") || val === "dokon_rahbari") return "dokon_rahbari";
+  if (val.includes("ofis") || val === "ofis_xodimi") return "ofis_xodimi";
+  if (val.includes("ommaviy") || val === "ommaviy_yollash") return "ommaviy_yollash";
+  if (val.includes("xodim") || val === "dokon_xodimi") return "dokon_xodimi";
+
+  const pos = position.toLowerCase();
+  if (pos.includes("menejer") || pos.includes("supervayzer") || pos.includes("rahbar") || pos.includes("direktor")) {
+    return "dokon_rahbari";
+  }
+  if (tab === "Bosh ofis") return "ofis_xodimi";
+  return "dokon_xodimi";
+}
+
 export async function POST() {
   try {
     const collected: Omit<ErpStaffingRow, "id" | "updatedAt">[] = [];
@@ -39,31 +54,63 @@ export async function POST() {
       if (!res.ok) continue;
 
       const text = await res.text();
-      if (text.trim().startsWith("<")) continue; // login HTML page (private sheet)
+      if (text.trim().startsWith("<")) continue;
       anyReadable = true;
 
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      for (let i = 0; i < lines.length; i++) {
-        const cols = parseCsvLine(lines[i]);
-        if (cols[0]?.toLowerCase() === "viloyat" || cols[2]?.toLowerCase() === "lavozim") {
-          continue;
+      if (lines.length === 0) continue;
+
+      // Sarlavha qatorini avtomatik aniqlash (LAVOZIM / SHTAT / BAND yoki Viloyat / Lavozim / Plan / Fakt)
+      let idxPos = 2;
+      let idxPlan = 4;
+      let idxFact = 5;
+      let idxRegion = 0;
+      let idxCity = 1;
+      let idxTrack = 3;
+      let idxShift = 6;
+      let startRow = 0;
+
+      for (let r = 0; r < Math.min(5, lines.length); r++) {
+        const cols = parseCsvLine(lines[r]).map((c) => c.toLowerCase().trim());
+        const foundPos = cols.findIndex((c) => c.includes("lavozim"));
+        if (foundPos !== -1) {
+          idxPos = foundPos;
+          const fPlan = cols.findIndex((c) => c.includes("shtat") || c.includes("plan"));
+          const fFact = cols.findIndex((c) => c.includes("band") || c.includes("fakt"));
+          const fReg = cols.findIndex((c) => c.includes("viloyat"));
+          const fCity = cols.findIndex((c) => c.includes("shahar"));
+          const fTrack = cols.findIndex((c) => c.includes("yonalish") || c.includes("yo'nalish"));
+          const fShift = cols.findIndex((c) => c.includes("smena"));
+          if (fPlan !== -1) idxPlan = fPlan;
+          if (fFact !== -1) idxFact = fFact;
+          if (fReg !== -1) idxRegion = fReg;
+          if (fCity !== -1) idxCity = fCity;
+          if (fTrack !== -1) idxTrack = fTrack;
+          if (fShift !== -1) idxShift = fShift;
+          startRow = r + 1;
+          break;
         }
-        const position = cols[2];
+      }
+
+      for (let i = startRow; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const position = (cols[idxPos] || "").replace(/\s+/g, " ").trim();
         if (!position) continue;
 
-        const planCount = Number(cols[4]) || 0;
-        const factCount = Number(cols[5]) || 0;
+        const planCount = Number(cols[idxPlan]) || 0;
+        const factCount = Number(cols[idxFact]) || 0;
+        if (planCount === 0 && factCount === 0) continue;
 
         collected.push({
           sheetTab: tab,
-          region: cols[0] || "Toshkent shahri",
-          city: cols[1] || "Toshkent",
+          region: cols[idxRegion] || "Toshkent shahri",
+          city: cols[idxCity] || "Toshkent",
           branch: tab,
           position,
-          track: (cols[3] as TrackType) || (tab === "Bosh ofis" ? "ofis_xodimi" : "dokon_xodimi"),
+          track: mapTrack(cols[idxTrack], position, tab),
           planCount,
           factCount,
-          shift: cols[6] || "2/2 smena",
+          shift: cols[idxShift] || "2/2 smena",
           salaryBand: "Shtat bo'yicha",
         });
       }
@@ -74,7 +121,7 @@ export async function POST() {
         {
           ok: false,
           error:
-            "Google Sheets fayli yopiq (Private). Uni 'Share → Anyone with the link (Viewer)' qiling yoki Apps Script qo'ying.",
+            "Google Sheets fayli yopiq (Private). Uni 'Share → Anyone with the link (Viewer)' qiling.",
         },
         { status: 403 }
       );

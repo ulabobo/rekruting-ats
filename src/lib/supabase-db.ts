@@ -1183,95 +1183,102 @@ export async function syncErpStaffingRows(
   rows: Omit<ErpStaffingRow, "id" | "updatedAt">[]
 ): Promise<{ openedVacancies: number }> {
   const sb = getSupabase();
-  let openedVacancies = 0;
-  const newlyOpened: { city: string; position: string; branch: string }[] = [];
+  const nowIso = new Date().toISOString();
 
-  for (const row of rows) {
+  // 1. Barcha shtat qatorlarini 1 ta batch upsert bilan saqlash
+  const staffingPayload = rows.map((row) => {
     const city = row.city || "Toshkent";
     const sheetTab = row.sheetTab || "Aura-1";
     const region = row.region || "Toshkent shahri";
     const id = `erp-${sheetTab}-${row.branch}-${row.position}`.toLowerCase().replace(/\s+/g, "-");
-    await sb.from("ats_erp_staffing").upsert(
-      {
-        id,
-        sheet_tab: sheetTab,
-        region,
-        city,
-        branch: row.branch,
-        position: row.position,
-        track: row.track,
-        plan_count: row.planCount,
-        fact_count: row.factCount,
-        shift: row.shift,
-        salary_band: row.salaryBand,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "branch,position" }
-    );
+    return {
+      id,
+      sheet_tab: sheetTab,
+      region,
+      city,
+      branch: row.branch,
+      position: row.position,
+      track: row.track,
+      plan_count: row.planCount,
+      fact_count: row.factCount,
+      shift: row.shift,
+      salary_band: row.salaryBand,
+      updated_at: nowIso,
+    };
+  });
 
-    const deficit = row.planCount - row.factCount;
+  if (staffingPayload.length > 0) {
+    await sb.from("ats_erp_staffing").upsert(staffingPayload, { onConflict: "branch,position" });
+  }
+
+  // 2. Mavjud barcha vakansiyalarni 1 ta SELECT bilan olish
+  const { data: existingAll } = await sb
+    .from("ats_vacancies")
+    .select("id, branch, position, headcount, status, erp_request_id");
+
+  const existingById = new Map((existingAll || []).map((v) => [v.id, v]));
+
+  const toUpsertVacs: Record<string, unknown>[] = [];
+  const toInsertNotifs: Record<string, unknown>[] = [];
+  const toCloseIds: string[] = [];
+  const newlyOpened: { city: string; position: string; branch: string }[] = [];
+  const activeSheetIds = new Set<string>();
+
+  for (const row of rows) {
+    const city = row.city || "Toshkent";
+    const region = row.region || "Toshkent shahri";
     const detId = `vac-sh-${`${row.branch}-${row.position}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")}`;
+    activeSheetIds.add(detId);
 
-    const { data: existingVac } = await sb
-      .from("ats_vacancies")
-      .select("id, headcount, status")
-      .eq("id", detId)
-      .maybeSingle();
+    const deficit = row.planCount - row.factCount;
+    const existing = existingById.get(detId);
 
     if (deficit > 0) {
-      if (!existingVac || existingVac.status === "closed") {
-        await createVacancy({
+      if (!existing || existing.status === "closed") {
+        toUpsertVacs.push({
           id: detId,
           track: row.track,
           region,
           city,
           branch: row.branch,
           position: row.position,
-          shift: row.shift,
-          salaryBand: row.salaryBand,
+          shift: row.shift || "To'liq kun",
+          salary_band: row.salaryBand,
           headcount: deficit,
-          hiringManagerName: "Sheets ERP Shtat",
-          responsibleRecruiterId: "u-admin",
-          erpRequestId: `SHEETS-${detId.slice(-6).toUpperCase()}`,
-          actorName: "Google Sheets",
+          filled_count: 0,
+          sla_days: TRACK_CONFIGS[row.track].slaDays,
+          erp_request_id: `SHEETS-${detId.slice(-6).toUpperCase()}`,
+          responsible_recruiter_id: "u-admin",
+          hiring_manager_name: "Sheets ERP",
+          status: "open",
         });
-
-        await sb.from("ats_notifications").insert({
+        toInsertNotifs.push({
           id: uid("notif"),
           title: "Yangi vakansiya ochildi",
           message: `${row.branch} — ${row.position}: Shtat ${row.planCount}, Band ${row.factCount}. ${deficit} ta bo'sh o'rin ochildi!`,
           type: "warning",
         });
-
         newlyOpened.push({ city, position: row.position, branch: row.branch });
-        openedVacancies++;
-      } else if (existingVac.headcount !== deficit) {
-        await sb
-          .from("ats_vacancies")
-          .update({ headcount: deficit })
-          .eq("id", existingVac.id);
+      } else if (existing.headcount !== deficit) {
+        toUpsertVacs.push({
+          id: detId,
+          track: row.track,
+          region,
+          city,
+          branch: row.branch,
+          position: row.position,
+          shift: row.shift || "To'liq kun",
+          salary_band: row.salaryBand,
+          headcount: deficit,
+          status: existing.status,
+        });
       }
-    } else if (existingVac && existingVac.status !== "closed") {
-      // Shtat to'ldi (BAND >= SHTAT) -> vakansiyani avtomatik yopish
-      await sb
-        .from("ats_vacancies")
-        .update({ status: "closed", filled_count: existingVac.headcount })
-        .eq("id", existingVac.id);
-
-      await logAudit({
-        entityType: "vacancy",
-        entityId: existingVac.id,
-        actorId: "system",
-        actorName: "Google Sheets",
-        action: `Shtat to'ldi (${row.factCount}/${row.planCount}) — vakansiya avtomatik yopildi`,
-        oldValue: existingVac.status,
-        newValue: "closed",
-      });
-
-      await sb.from("ats_notifications").insert({
+    } else if (existing && existing.status !== "closed") {
+      toCloseIds.push(detId);
+      toInsertNotifs.push({
         id: uid("notif"),
         title: "Vakansiya yopildi (Shtat to'ldi)",
         message: `${row.branch} — ${row.position} shtati to'lgani uchun vakansiya yopildi.`,
@@ -1280,36 +1287,42 @@ export async function syncErpStaffingRows(
     }
   }
 
+  // Sheets'dan o'chirilgan eski SHEETS-* vakansiyalarini ham yopish
+  for (const v of existingAll || []) {
+    if (
+      v.status !== "closed" &&
+      String(v.erp_request_id || "").startsWith("SHEETS-") &&
+      !activeSheetIds.has(v.id)
+    ) {
+      toCloseIds.push(v.id);
+    }
+  }
+
+  if (toUpsertVacs.length > 0) {
+    await sb.from("ats_vacancies").upsert(toUpsertVacs, { onConflict: "id" });
+  }
+  if (toCloseIds.length > 0) {
+    await sb
+      .from("ats_vacancies")
+      .update({ status: "closed" })
+      .in("id", toCloseIds);
+  }
+  if (toInsertNotifs.length > 0) {
+    await sb.from("ats_notifications").insert(toInsertNotifs);
+  }
   if (newlyOpened.length > 0) {
     await notifyReservedCandidatesGrouped(newlyOpened);
   }
 
-  // Sheets'da endi mavjud bo'lmagan eski SHEETS-* vakansiyalarini avtomatik yopish
-  const activeSheetKeys = new Set(
-    rows.map((r) => `${r.branch}::${r.position}`)
-  );
-  const { data: allOpenSheetVacs } = await sb
-    .from("ats_vacancies")
-    .select("id, branch, position")
-    .in("status", ["open", "accepted"])
-    .like("erp_request_id", "SHEETS-%");
-
-  for (const v of allOpenSheetVacs || []) {
-    if (!activeSheetKeys.has(`${v.branch}::${v.position}`)) {
-      await sb
-        .from("ats_vacancies")
-        .update({ status: "closed" })
-        .eq("id", v.id);
-    }
+  if (newlyOpened.length > 0 || toCloseIds.length > 0) {
+    await logIntegration({
+      direction: "inbound",
+      system: "GoogleSheets",
+      eventType: "ERP_STAFFING_CHECK",
+      payloadSummary: `${rows.length} qator tekshirildi: +${newlyOpened.length} ochildi, ${toCloseIds.length} yopildi.`,
+      status: "success",
+    });
   }
 
-  await logIntegration({
-    direction: "inbound",
-    system: "GoogleSheets",
-    eventType: "ERP_STAFFING_CHECK",
-    payloadSummary: `${rows.length} ta shtat qatori tekshirildi, ${openedVacancies} ta vakansiya ochildi.`,
-    status: "success",
-  });
-
-  return { openedVacancies };
+  return { openedVacancies: newlyOpened.length };
 }

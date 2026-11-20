@@ -55,15 +55,20 @@ export async function POST() {
     const collected: Omit<ErpStaffingRow, "id" | "updatedAt">[] = [];
     let anyReadable = false;
 
-    for (const tab of TABS) {
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(
-        tab
-      )}`;
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) continue;
+    const tabTexts = await Promise.all(
+      TABS.map(async (tab) => {
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(
+          tab
+        )}`;
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return { tab, text: "" };
+        const text = await res.text();
+        return { tab, text };
+      })
+    );
 
-      const text = await res.text();
-      if (text.trim().startsWith("<")) continue;
+    for (const { tab, text } of tabTexts) {
+      if (!text || text.trim().startsWith("<")) continue;
       anyReadable = true;
 
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);

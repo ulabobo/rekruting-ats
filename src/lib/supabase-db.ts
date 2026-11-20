@@ -1251,6 +1251,25 @@ export async function syncErpStaffingRows(
     await notifyReservedCandidatesGrouped(newlyOpened);
   }
 
+  // Sheets'da endi mavjud bo'lmagan eski SHEETS-* vakansiyalarini avtomatik yopish
+  const activeSheetKeys = new Set(
+    rows.map((r) => `${r.branch}::${r.position}`)
+  );
+  const { data: allOpenSheetVacs } = await sb
+    .from("ats_vacancies")
+    .select("id, branch, position")
+    .in("status", ["open", "accepted"])
+    .like("erp_request_id", "SHEETS-%");
+
+  for (const v of allOpenSheetVacs || []) {
+    if (!activeSheetKeys.has(`${v.branch}::${v.position}`)) {
+      await sb
+        .from("ats_vacancies")
+        .update({ status: "closed" })
+        .eq("id", v.id);
+    }
+  }
+
   await logIntegration({
     direction: "inbound",
     system: "GoogleSheets",

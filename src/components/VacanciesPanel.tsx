@@ -121,12 +121,18 @@ export default function VacanciesPanel({
     });
   }, [db.vacancies, search, filters]);
 
-  // Top Analytics stats dynamically calculated from filtered vacancies!
-  const totalCount = filtered.length;
-  const openCount = filtered.filter((v) => v.status === "open").length;
-  const acceptedCount = filtered.filter((v) => v.status === "accepted").length;
+  // Top Analytics stats dynamically calculated by headcount (shtat soni) from filtered vacancies!
   const totalHeadcount = filtered.reduce((s, v) => s + v.headcount, 0);
-  const filledHeadcount = filtered.reduce((s, v) => s + v.filledCount, 0);
+  const openHeadcount = filtered
+    .filter((v) => v.status === "open")
+    .reduce((s, v) => s + v.headcount, 0);
+  const acceptedHeadcount = filtered
+    .filter((v) => v.status === "accepted")
+    .reduce((s, v) => s + v.headcount, 0);
+  const closedOrFilledHeadcount = filtered.reduce(
+    (s, v) => s + (v.status === "closed" ? v.headcount : v.filledCount),
+    0
+  );
 
   const activeFilterCount =
     filters.branches.length + filters.tracks.length + filters.statuses.length;
@@ -208,32 +214,32 @@ export default function VacanciesPanel({
         </div>
       </div>
 
-      {/* Top Analytics Row (Filterga moslashadi!) */}
+      {/* Top Analytics Row (Shtat sonlari bo'yicha, filterga moslashadi!) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-xs">
           <p className="text-[11px] font-semibold text-slate-400">
-            {lang === "ru" ? "Вакансий (по фильтру)" : "Jami vakansiyalar"}
+            {lang === "ru" ? "Всего мест (штат)" : "Jami bo'sh o'rinlar (shtat)"}
           </p>
-          <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalCount}</p>
+          <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalHeadcount}</p>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 shadow-xs">
           <p className="text-[11px] font-semibold text-amber-700">
             {lang === "ru" ? "Новые (ожидают)" : "Yangi (kutilmoqda)"}
           </p>
-          <p className="mt-1 text-2xl font-extrabold text-amber-700">{openCount}</p>
+          <p className="mt-1 text-2xl font-extrabold text-amber-700">{openHeadcount}</p>
         </div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-xs">
           <p className="text-[11px] font-semibold text-emerald-700">
             {lang === "ru" ? "Принято рекрутером" : "Qabul qilingan"}
           </p>
-          <p className="mt-1 text-2xl font-extrabold text-emerald-700">{acceptedCount}</p>
+          <p className="mt-1 text-2xl font-extrabold text-emerald-700">{acceptedHeadcount}</p>
         </div>
         <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 shadow-xs">
           <p className="text-[11px] font-semibold text-blue-700">
-            {lang === "ru" ? "Штат (закрыто / план)" : "Shtat (band / kerak)"}
+            {lang === "ru" ? "Закрыто / Занято" : "Yopilgan / Band"}
           </p>
           <p className="mt-1 text-2xl font-extrabold text-[#3b6ff5]">
-            {filledHeadcount} / {totalHeadcount}
+            {closedOrFilledHeadcount}
           </p>
         </div>
       </div>

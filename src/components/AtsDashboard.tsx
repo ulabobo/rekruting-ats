@@ -352,7 +352,9 @@ export default function AtsDashboard({
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {db.vacancies.filter((v) => v.status === "open").length}
+                  {db.vacancies
+                    .filter((v) => v.status === "open" || v.status === "accepted")
+                    .reduce((s, v) => s + v.headcount, 0)}
                 </span>
               </button>
 

@@ -57,10 +57,12 @@ export default function LoginScreen({
 
       {/* Top bar: Language switcher */}
       <div className="relative z-10 mb-6 flex w-full max-w-md items-center justify-between px-2">
-        <div className="flex items-center gap-2 text-white">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-sm font-black backdrop-blur-md">
-            R
-          </div>
+        <div className="flex items-center gap-2.5 text-white">
+          <img
+            src="/logo.jpg"
+            alt="Rekruting ATS"
+            className="h-9 w-9 rounded-xl object-cover shadow-md"
+          />
           <span className="text-sm font-bold tracking-wide">{t.appName}</span>
         </div>
 

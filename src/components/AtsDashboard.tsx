@@ -241,9 +241,11 @@ export default function AtsDashboard({
       {/* Sidebar - Clean Frosted White matching Login Design */}
       <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5865f2] text-lg font-black text-white shadow-sm shadow-[#5865f2]/30">
-            R
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Rekruting ATS"
+            className="h-9 w-9 rounded-xl object-cover shadow-sm"
+          />
           <div>
             <p className="text-base font-extrabold tracking-tight text-slate-900">{t.appName}</p>
             <p className="text-[10px] font-medium text-slate-400">{t.appSubtitle}</p>

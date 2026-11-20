@@ -1182,15 +1182,15 @@ export async function syncErpStaffingRows(
     );
 
     const deficit = row.planCount - row.factCount;
-    if (deficit > 0) {
-      const { data: existingVac } = await sb
-        .from("ats_vacancies")
-        .select("id")
-        .eq("branch", row.branch)
-        .eq("position", row.position)
-        .in("status", ["open", "accepted"])
-        .maybeSingle();
+    const { data: existingVac } = await sb
+      .from("ats_vacancies")
+      .select("id, headcount, status")
+      .eq("branch", row.branch)
+      .eq("position", row.position)
+      .in("status", ["open", "accepted"])
+      .maybeSingle();
 
+    if (deficit > 0) {
       if (!existingVac) {
         await createVacancy({
           track: row.track,
@@ -1215,7 +1215,35 @@ export async function syncErpStaffingRows(
 
         newlyOpened.push({ city, position: row.position, branch: row.branch });
         openedVacancies++;
+      } else if (existingVac.headcount !== deficit) {
+        await sb
+          .from("ats_vacancies")
+          .update({ headcount: deficit })
+          .eq("id", existingVac.id);
       }
+    } else if (existingVac) {
+      // Shtat to'ldi (BAND >= SHTAT) -> vakansiyani avtomatik yopish
+      await sb
+        .from("ats_vacancies")
+        .update({ status: "closed", filled_count: existingVac.headcount })
+        .eq("id", existingVac.id);
+
+      await logAudit({
+        entityType: "vacancy",
+        entityId: existingVac.id,
+        actorId: "system",
+        actorName: "Google Sheets",
+        action: `Shtat to'ldi (${row.factCount}/${row.planCount}) — vakansiya avtomatik yopildi`,
+        oldValue: existingVac.status,
+        newValue: "closed",
+      });
+
+      await sb.from("ats_notifications").insert({
+        id: uid("notif"),
+        title: "Vakansiya yopildi (Shtat to'ldi)",
+        message: `${row.branch} — ${row.position} shtati to'lgani uchun vakansiya yopildi.`,
+        type: "success",
+      });
     }
   }
 

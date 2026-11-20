@@ -95,7 +95,7 @@ export default function AtsDashboard({
     setTimeout(() => setBannerMsg(null), 5000);
   };
 
-  // Avtomatik fon yangilanishi (har 10 soniyada F5 bosmasdan)
+  // Avtomatik fon yangilanishi (har 5 daqiqada)
   useEffect(() => {
     if (!currentUser) return;
     const timer = setInterval(async () => {
@@ -109,7 +109,7 @@ export default function AtsDashboard({
       } catch {
         // tarmoq xatosida jim o'tadi
       }
-    }, 10000);
+    }, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, [currentUser]);
 

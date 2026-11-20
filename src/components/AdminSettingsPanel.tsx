@@ -20,6 +20,8 @@ export default function AdminSettingsPanel({
   // Position profile form
   const [profTrack, setProfTrack] = useState<TrackType>("dokon_xodimi");
   const [profPosition, setProfPosition] = useState("");
+  const [profExpectationUz, setProfExpectationUz] = useState("");
+  const [profExpectationRu, setProfExpectationRu] = useState("");
   const [profCriteria, setProfCriteria] = useState<{ uz: string; ru: string }[]>([
     { uz: "Muloqot va xushmuomalalik", ru: "Коммуникация и вежливость" },
     { uz: "Mas'uliyat va intizom", ru: "Ответственность и дисциплина" },
@@ -315,6 +317,8 @@ export default function AdminSettingsPanel({
                   action: "save_position_profile",
                   track: profTrack,
                   positionName: profPosition,
+                  expectationUz: profExpectationUz,
+                  expectationRu: profExpectationRu,
                   criteria: profCriteria.filter((c) => c.uz.trim()),
                 }),
               });
@@ -322,6 +326,8 @@ export default function AdminSettingsPanel({
               if (data.db) {
                 onUpdateDb(data.db);
                 setProfPosition("");
+                setProfExpectationUz("");
+                setProfExpectationRu("");
                 setMsg(lang === "ru" ? "Профиль сохранён!" : "Lavozim profili saqlandi!");
                 setTimeout(() => setMsg(null), 3000);
               }
@@ -362,6 +368,28 @@ export default function AdminSettingsPanel({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block font-semibold text-slate-700">
+                {lang === "ru"
+                  ? "Текст «Мы ждём от вас» (показывается в Telegram-боте после выбора должности)"
+                  : "«Sizdan kutamiz» matni (Telegram botda lavozim tanlangandan keyin chiqadi)"}
+              </label>
+              <textarea
+                rows={2}
+                value={profExpectationUz}
+                onChange={(e) => setProfExpectationUz(e.target.value)}
+                placeholder="Sizdan kutamiz: xushmuomalalik, mas'uliyat, mijozlar bilan ishlash..."
+                className="w-full rounded-xl border border-slate-200 p-2.5"
+              />
+              <textarea
+                rows={2}
+                value={profExpectationRu}
+                onChange={(e) => setProfExpectationRu(e.target.value)}
+                placeholder="Мы ждём от вас: вежливость, ответственность..."
+                className="w-full rounded-xl border border-slate-200 p-2.5"
+              />
             </div>
 
             <div className="space-y-2">

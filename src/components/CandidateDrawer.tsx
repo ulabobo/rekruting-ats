@@ -352,6 +352,48 @@ export default function CandidateDrawer({
               </div>
             </div>
 
+            {/* Anketa javoblari (Rasmdagi jadval ko'rinishida) */}
+            {candidate.questionnaireData &&
+              Object.keys(candidate.questionnaireData).length > 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                    {lang === "ru" ? "Вопросник кандидата" : "Nomzod anketasi javoblari"}
+                  </h3>
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {[
+                      ["Hudud / Viloyat", candidate.questionnaireData.region],
+                      ["Shahar", candidate.questionnaireData.city],
+                      ["Filial", candidate.questionnaireData.branch],
+                      ["Lavozim", candidate.questionnaireData.position],
+                      ["Smena", candidate.questionnaireData.shift],
+                      ["Lavozimda tajriba", candidate.questionnaireData.hasExp],
+                      ["Ism", candidate.questionnaireData.firstName],
+                      ["Familiya", candidate.questionnaireData.lastName],
+                      ["Tug'ilgan sana", candidate.questionnaireData.birthDate],
+                      ["Yashash manzili", candidate.questionnaireData.address],
+                      ["Telefon", candidate.questionnaireData.phone || candidate.phone],
+                      ["Jinsi", candidate.questionnaireData.gender],
+                      ["Oilaviy holati", candidate.questionnaireData.marital],
+                      ["Homiladorlik", candidate.questionnaireData.pregnant],
+                      ["Talabami?", candidate.questionnaireData.student],
+                      ["Ma'lumot darajasi", candidate.questionnaireData.education],
+                      ["O'zbek tili", candidate.questionnaireData.uzLang],
+                      ["Rus tili", candidate.questionnaireData.ruLang],
+                      ["Umumiy tajriba", candidate.questionnaireData.totalExp],
+                      ["Oxirgi ish joyi", candidate.questionnaireData.lastWork],
+                      ["Og'ir kasallik / cheklov", candidate.questionnaireData.illness],
+                    ]
+                      .filter(([, val]) => Boolean(val))
+                      .map(([label, val]) => (
+                        <div key={label} className="grid grid-cols-2 py-1.5">
+                          <span className="text-slate-500">{label}</span>
+                          <span className="font-semibold text-slate-900">{val}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
             {/* Simple Evaluation */}
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">

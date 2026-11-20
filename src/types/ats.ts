@@ -56,6 +56,7 @@ export interface MassHiringProject {
 export interface Vacancy {
   id: string;
   track: TrackType;
+  region?: string;
   city: string;
   branch: string;
   position: string;
@@ -91,6 +92,7 @@ export interface Candidate {
   telegramChatId?: string;
   telegramUsername?: string;
   tags: string[];
+  questionnaireData?: Record<string, string>;
   createdAt: string;
 }
 
@@ -98,6 +100,8 @@ export interface PositionProfile {
   id: string;
   track: TrackType;
   positionName: string;
+  expectationUz?: string;
+  expectationRu?: string;
   criteria: { uz: string; ru: string }[];
   updatedAt: string;
 }
@@ -181,6 +185,8 @@ export interface MessageTemplate {
 
 export interface ErpStaffingRow {
   id: string;
+  sheetTab: string;
+  region?: string;
   city: string;
   branch: string;
   position: string;

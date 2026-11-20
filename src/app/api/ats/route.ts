@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
       await savePositionProfile({
         track: body.track,
         positionName: body.positionName,
+        expectationUz: body.expectationUz,
+        expectationRu: body.expectationRu,
         criteria: body.criteria || [],
       });
       const db = await getFullDatabase();

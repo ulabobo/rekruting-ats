@@ -138,6 +138,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     vacancies: (vacRes.data || []).map((v) => ({
       id: v.id,
       track: v.track,
+      region: v.region || "Toshkent shahri",
       city: v.city || "Toshkent",
       branch: v.branch,
       position: v.position,
@@ -172,6 +173,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       telegramChatId: c.telegram_chat_id,
       telegramUsername: c.telegram_username,
       tags: c.tags || [],
+      questionnaireData: c.questionnaire_data || {},
       createdAt: c.created_at,
     })),
     applications: (appRes.data || []).map((a) => ({
@@ -237,11 +239,15 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       id: p.id,
       track: p.track,
       positionName: p.position_name,
+      expectationUz: p.expectation_uz || "",
+      expectationRu: p.expectation_ru || "",
       criteria: p.criteria || [],
       updatedAt: p.updated_at,
     })),
     erpStaffing: (erpRes.data || []).map((s) => ({
       id: s.id,
+      sheetTab: s.sheet_tab || "Aura-1",
+      region: s.region || "Toshkent shahri",
       city: s.city || "Toshkent",
       branch: s.branch,
       position: s.position,
@@ -360,11 +366,15 @@ export async function createApplicationFromLead(input: {
   vacancyId: string;
   source: CandidateSource;
   birthDate?: string;
+  gender?: string;
+  city?: string;
   address?: string;
   experienceYears?: string;
   education?: string;
+  lastWorkplace?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  questionnaireData?: Record<string, string>;
 }): Promise<{ isDuplicate: boolean; applicationId: string }> {
   const sb = getSupabase();
   const phone = normalizePhone(input.phone);
@@ -393,14 +403,18 @@ export async function createApplicationFromLead(input: {
       phone,
       full_name: input.fullName,
       birth_date: input.birthDate || null,
+      gender: input.gender || null,
+      city: input.city || vac.city || null,
       address: input.address || null,
       experience_years: input.experienceYears || null,
       education: input.education || null,
+      last_workplace: input.lastWorkplace || null,
       source: input.source,
       is_internal: input.source === "Ichki nomzod",
       telegram_chat_id: input.telegramChatId || null,
       telegram_username: input.telegramUsername || null,
       tags: [input.source],
+      questionnaire_data: input.questionnaireData || {},
     });
   } else {
     const { count } = await sb
@@ -408,15 +422,14 @@ export async function createApplicationFromLead(input: {
       .select("id", { count: "exact", head: true })
       .eq("candidate_id", candidateId);
     isDuplicate = (count || 0) > 0;
-    if (input.telegramChatId) {
-      await sb
-        .from("ats_candidates")
-        .update({
-          telegram_chat_id: input.telegramChatId,
-          telegram_username: input.telegramUsername || null,
-        })
-        .eq("id", candidateId);
-    }
+    await sb
+      .from("ats_candidates")
+      .update({
+        telegram_chat_id: input.telegramChatId || existingCand.telegram_chat_id,
+        telegram_username: input.telegramUsername || existingCand.telegram_username,
+        questionnaire_data: input.questionnaireData || existingCand.questionnaire_data || {},
+      })
+      .eq("id", candidateId);
   }
 
   const track = vac.track as TrackType;
@@ -823,10 +836,20 @@ export async function notifyReservedCandidatesForCity(params: {
 export async function createReserveCandidate(input: {
   phone: string;
   fullName: string;
+  region?: string;
   city: string;
+  branch?: string;
+  position?: string;
+  shift?: string;
+  birthDate?: string;
+  gender?: string;
+  address?: string;
   experienceYears?: string;
+  education?: string;
+  lastWorkplace?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  questionnaireData?: Record<string, string>;
 }) {
   const sb = getSupabase();
   const phone = normalizePhone(input.phone);
@@ -836,36 +859,102 @@ export async function createReserveCandidate(input: {
     .eq("phone", phone)
     .maybeSingle();
 
-  if (existing) {
+  let candidateId = existing?.id as string | undefined;
+
+  if (candidateId) {
     await sb
       .from("ats_candidates")
       .update({
         city: input.city,
+        address: input.address || input.city,
+        birth_date: input.birthDate || null,
+        gender: input.gender || null,
+        education: input.education || null,
+        last_workplace: input.lastWorkplace || null,
+        experience_years: input.experienceYears || null,
         telegram_chat_id: input.telegramChatId || null,
+        telegram_username: input.telegramUsername || null,
         tags: ["Zaxira", input.city],
+        questionnaire_data: input.questionnaireData || {},
       })
-      .eq("id", existing.id);
+      .eq("id", candidateId);
   } else {
+    candidateId = uid("cand");
     await sb.from("ats_candidates").insert({
-      id: uid("cand"),
+      id: candidateId,
       phone,
       full_name: input.fullName,
       city: input.city,
-      address: input.city,
+      address: input.address || input.city,
+      birth_date: input.birthDate || null,
+      gender: input.gender || null,
+      education: input.education || null,
+      last_workplace: input.lastWorkplace || null,
       experience_years: input.experienceYears || null,
       source: "Telegram bot",
       is_internal: false,
       telegram_chat_id: input.telegramChatId || null,
       telegram_username: input.telegramUsername || null,
       tags: ["Zaxira", input.city],
+      questionnaire_data: input.questionnaireData || {},
     });
   }
 
+  // Zaxira bo'lsa ham baribir Qiziqish bildirganlar (otklik) ustuniga tushadi!
+  const reserveVacId = `vac-zaxira-${input.city.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  const { data: existingVac } = await sb
+    .from("ats_vacancies")
+    .select("id")
+    .eq("id", reserveVacId)
+    .maybeSingle();
+
+  if (!existingVac) {
+    await sb.from("ats_vacancies").insert({
+      id: reserveVacId,
+      track: "dokon_xodimi",
+      region: input.region || input.city,
+      city: input.city,
+      branch: input.branch || `${input.city} (Zaxira)`,
+      position: input.position || "Zaxira nomzod",
+      shift: input.shift || "Kelishiladi",
+      salary_band: "Shtat bo'yicha",
+      headcount: 1,
+      filled_count: 0,
+      sla_days: 30,
+      responsible_recruiter_id: "u-admin",
+      hiring_manager_name: "Rekruter",
+      status: "open",
+    });
+  }
+
+  const appId = uid("app");
+  await sb.from("ats_applications").insert({
+    id: appId,
+    candidate_id: candidateId,
+    vacancy_id: reserveVacId,
+    track: "dokon_xodimi",
+    current_stage: "otklik",
+    status: "reserved",
+    match_score: 75,
+    assigned_recruiter_id: "u-admin",
+    is_duplicate_warning: Boolean(existing),
+  });
+
+  await logAudit({
+    entityType: "application",
+    entityId: appId,
+    actorId: "system",
+    actorName: "Telegram Bot",
+    action: `Zaxira anketasi qabul qilindi (${input.city}) → Qiziqish bildirganlar`,
+    newValue: "otklik",
+  });
+
   await sb.from("ats_notifications").insert({
     id: uid("notif"),
-    title: `Zaxira anketasi (${input.city})`,
-    message: `${input.fullName} (${phone}) — ${input.city} shahrida joy ochilishini kutmoqda.`,
+    title: `Zaxira nomzod (${input.city})`,
+    message: `${input.fullName} (${phone}) — Qiziqish bildirganlar ustuniga tushdi.`,
     type: "info",
+    related_application_id: appId,
   });
 }
 
@@ -1006,6 +1095,8 @@ export async function deleteRecruiterUser(userId: string) {
 export async function savePositionProfile(params: {
   track: TrackType;
   positionName: string;
+  expectationUz?: string;
+  expectationRu?: string;
   criteria: { uz: string; ru: string }[];
 }) {
   const sb = getSupabase();
@@ -1015,6 +1106,8 @@ export async function savePositionProfile(params: {
       id,
       track: params.track,
       position_name: params.positionName.trim(),
+      expectation_uz: params.expectationUz || "",
+      expectation_ru: params.expectationRu || "",
       criteria: params.criteria,
       updated_at: new Date().toISOString(),
     },
@@ -1035,10 +1128,14 @@ export async function syncErpStaffingRows(
 
   for (const row of rows) {
     const city = row.city || "Toshkent";
-    const id = `erp-${row.branch}-${row.position}`.toLowerCase().replace(/\s+/g, "-");
+    const sheetTab = row.sheetTab || "Aura-1";
+    const region = row.region || "Toshkent shahri";
+    const id = `erp-${sheetTab}-${row.branch}-${row.position}`.toLowerCase().replace(/\s+/g, "-");
     await sb.from("ats_erp_staffing").upsert(
       {
         id,
+        sheet_tab: sheetTab,
+        region,
         city,
         branch: row.branch,
         position: row.position,

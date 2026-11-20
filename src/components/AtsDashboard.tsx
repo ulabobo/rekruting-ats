@@ -32,7 +32,6 @@ import { UI_TEXT } from "@/lib/i18n";
 import LoginScreen from "@/components/LoginScreen";
 import CandidateDrawer from "@/components/CandidateDrawer";
 import AnalyticsPanel from "@/components/AnalyticsPanel";
-import IntegrationsPanel from "@/components/IntegrationsPanel";
 import VacanciesPanel from "@/components/VacanciesPanel";
 import AllCandidatesPanel from "@/components/AllCandidatesPanel";
 import AdminSettingsPanel from "@/components/AdminSettingsPanel";
@@ -49,7 +48,6 @@ type NavSection =
   | { kind: "vacancies" }
   | { kind: "all_candidates" }
   | { kind: "analytics" }
-  | { kind: "integrations" }
   | { kind: "settings" };
 
 export default function AtsDashboard({
@@ -393,18 +391,6 @@ export default function AtsDashboard({
                 {t.analyticsNav}
               </button>
 
-              <button
-                onClick={() => setActiveNav({ kind: "integrations" })}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                  activeNav.kind === "integrations"
-                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
-                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
-                }`}
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                {t.sheetsErpNav}
-              </button>
-
               {currentUser.role === "admin" && (
                 <button
                   onClick={() => setActiveNav({ kind: "settings" })}
@@ -636,10 +622,6 @@ export default function AtsDashboard({
           )}
 
           {activeNav.kind === "analytics" && <AnalyticsPanel db={db} />}
-
-          {activeNav.kind === "integrations" && (
-            <IntegrationsPanel db={db} lang={lang} onUpdateDb={setDb} />
-          )}
 
           {activeNav.kind === "settings" && currentUser.role === "admin" && (
             <AdminSettingsPanel db={db} lang={lang} onUpdateDb={setDb} />

@@ -1,0 +1,887 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  Briefcase,
+  Building2,
+  Calendar,
+  Clock,
+  FileSpreadsheet,
+  Filter,
+  Kanban,
+  Layers,
+  LogOut,
+  Plus,
+  Search,
+  Settings,
+  Store,
+  Table2,
+  UserCheck,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { AtsDatabase, Language, TrackType, User } from "@/types/ats";
+import { TRACK_CONFIGS, getStageLabel, getTrackTitle } from "@/lib/stages";
+import { UI_TEXT } from "@/lib/i18n";
+import LoginScreen from "@/components/LoginScreen";
+import CandidateDrawer from "@/components/CandidateDrawer";
+import AnalyticsPanel from "@/components/AnalyticsPanel";
+import IntegrationsPanel from "@/components/IntegrationsPanel";
+import VacanciesPanel from "@/components/VacanciesPanel";
+import AllCandidatesPanel from "@/components/AllCandidatesPanel";
+import AdminSettingsPanel from "@/components/AdminSettingsPanel";
+import {
+  AddCandidateModal,
+  CreateMassProjectModal,
+  CreateVacancyModal,
+} from "@/components/Modals";
+
+type NavSection =
+  | { kind: "track"; track: TrackType }
+  | { kind: "vacancies" }
+  | { kind: "all_candidates" }
+  | { kind: "analytics" }
+  | { kind: "integrations" }
+  | { kind: "settings" };
+
+export default function AtsDashboard({
+  initialDb,
+  initialUser,
+}: {
+  initialDb: AtsDatabase;
+  initialUser: User | null;
+}) {
+  const [db, setDb] = useState<AtsDatabase>(initialDb);
+  const [currentUser, setCurrentUser] = useState<User | null>(initialUser);
+  const [lang, setLang] = useState<Language>("uz");
+
+  const t = UI_TEXT[lang];
+
+  const defaultTrack: TrackType =
+    currentUser?.allowedTracks?.[0] || "dokon_xodimi";
+
+  const [activeNav, setActiveNav] = useState<NavSection>({
+    kind: "track",
+    track: defaultTrack,
+  });
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [positionFilter, setPositionFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [onlyDuplicates, setOnlyDuplicates] = useState(false);
+  const [onlySlaBreach, setOnlySlaBreach] = useState(false);
+
+  // Modals & Drawers
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [showVacancyModal, setShowVacancyModal] = useState(false);
+  const [showMassModal, setShowMassModal] = useState(false);
+  const [showCandidateModal, setShowCandidateModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [bannerMsg, setBannerMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
+
+  const showBanner = (type: "ok" | "err", text: string) => {
+    setBannerMsg({ type, text });
+    setTimeout(() => setBannerMsg(null), 5000);
+  };
+
+  const activeTrack: TrackType =
+    activeNav.kind === "track" ? activeNav.track : "dokon_xodimi";
+  const trackConfig = TRACK_CONFIGS[activeTrack];
+
+  const branchesForTrack = useMemo(() => {
+    const set = new Set<string>();
+    db.vacancies.filter((v) => v.track === activeTrack).forEach((v) => set.add(v.branch));
+    return Array.from(set);
+  }, [db.vacancies, activeTrack]);
+
+  const positionsForTrack = useMemo(() => {
+    const set = new Set<string>();
+    db.vacancies.filter((v) => v.track === activeTrack).forEach((v) => set.add(v.position));
+    return Array.from(set);
+  }, [db.vacancies, activeTrack]);
+
+  const trackApps = useMemo(() => {
+    return db.applications.filter((app) => {
+      if (app.track !== activeTrack) return false;
+      const cand = db.candidates.find((c) => c.id === app.candidateId);
+      const vac = db.vacancies.find((v) => v.id === app.vacancyId);
+      if (!cand || !vac) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (
+          !cand.fullName.toLowerCase().includes(q) &&
+          !cand.phone.toLowerCase().includes(q) &&
+          !vac.position.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (branchFilter !== "all" && vac.branch !== branchFilter) return false;
+      if (positionFilter !== "all" && vac.position !== positionFilter) return false;
+      if (sourceFilter !== "all" && cand.source !== sourceFilter) return false;
+      if (onlyDuplicates && !app.isDuplicateWarning) return false;
+      if (onlySlaBreach) {
+        const openDays = Math.floor(
+          (Date.now() - new Date(vac.approvedAt).getTime()) / 86400000
+        );
+        if (openDays <= vac.slaDays) return false;
+      }
+      return true;
+    });
+  }, [
+    db,
+    activeTrack,
+    searchQuery,
+    branchFilter,
+    positionFilter,
+    sourceFilter,
+    onlyDuplicates,
+    onlySlaBreach,
+  ]);
+
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        lang={lang}
+        onChangeLang={setLang}
+        onLoginSuccess={async (user) => {
+          setCurrentUser(user);
+          setActiveNav({
+            kind: "track",
+            track: user.allowedTracks[0] || "dokon_xodimi",
+          });
+          const res = await fetch("/api/ats");
+          const data = await res.json();
+          if (data.db) setDb(data.db);
+        }}
+      />
+    );
+  }
+
+  const unreadNotifs = db.notifications.filter((n) => !n.read).length;
+
+  const handleDropToStage = async (targetStage: string) => {
+    if (!draggedAppId) return;
+    const appId = draggedAppId;
+    setDraggedAppId(null);
+
+    const res = await fetch("/api/ats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "move_stage",
+        applicationId: appId,
+        targetStage,
+        actorId: currentUser.id,
+        actorName: currentUser.fullName,
+        lang,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showBanner("err", data.error);
+    } else {
+      setDb(data.db);
+      showBanner("ok", getStageLabel(activeTrack, targetStage, lang));
+    }
+  };
+
+  const selectedApp = db.applications.find((a) => a.id === selectedAppId) || null;
+
+  const trackIcons: Record<TrackType, React.ReactNode> = {
+    dokon_xodimi: <Store className="h-4 w-4" />,
+    dokon_rahbari: <UserCheck className="h-4 w-4" />,
+    ofis_xodimi: <Briefcase className="h-4 w-4" />,
+    ommaviy_yollash: <Layers className="h-4 w-4" />,
+  };
+
+  const formatStageDuration = (iso: string) => {
+    const diffHours = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 3600000));
+    if (diffHours < 24) return `${diffHours} ${t.hoursShort}`;
+    return `${Math.floor(diffHours / 24)} ${t.daysShort}`;
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#f6f5f1] text-zinc-900">
+      {/* Sidebar - Corporate Graphite */}
+      <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 text-zinc-100">
+        <div className="flex items-center gap-2.5 border-b border-zinc-800 px-5 py-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-lg font-black text-white">
+            A
+          </div>
+          <div>
+            <p className="text-base font-extrabold tracking-tight text-white">{t.appName}</p>
+            <p className="text-[10px] font-medium text-zinc-400">{t.appSubtitle}</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+          <div>
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              {t.directionsGroup}
+            </p>
+            <div className="space-y-1">
+              {(Object.keys(TRACK_CONFIGS) as TrackType[]).map((tr) => {
+                if (
+                  currentUser.role !== "admin" &&
+                  !currentUser.allowedTracks.includes(tr)
+                ) {
+                  return null;
+                }
+                const isActive = activeNav.kind === "track" && activeNav.track === tr;
+                const count = db.applications.filter(
+                  (a) => a.track === tr && a.status !== "rejected"
+                ).length;
+
+                return (
+                  <button
+                    key={tr}
+                    onClick={() => {
+                      setActiveNav({ kind: "track", track: tr });
+                      setBranchFilter("all");
+                      setPositionFilter("all");
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${
+                      isActive
+                        ? "bg-teal-600 text-white shadow-sm"
+                        : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5 truncate">
+                      {trackIcons[tr]}
+                      <span className="truncate">{getTrackTitle(tr, lang)}</span>
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        isActive ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-300"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              {t.managementGroup}
+            </p>
+            <div className="space-y-1">
+              <button
+                onClick={() => setActiveNav({ kind: "vacancies" })}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "vacancies"
+                    ? "bg-teal-600 text-white"
+                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Briefcase className="h-4 w-4" />
+                  {t.vacanciesNav}
+                </span>
+                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                  {db.vacancies.filter((v) => v.status === "open").length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveNav({ kind: "all_candidates" })}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "all_candidates"
+                    ? "bg-teal-600 text-white"
+                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Users className="h-4 w-4" />
+                  {t.allCandidatesNav}
+                </span>
+                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                  {db.applications.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveNav({ kind: "analytics" })}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "analytics"
+                    ? "bg-teal-600 text-white"
+                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" />
+                {t.analyticsNav}
+              </button>
+
+              <button
+                onClick={() => setActiveNav({ kind: "integrations" })}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "integrations"
+                    ? "bg-teal-600 text-white"
+                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {t.sheetsErpNav}
+              </button>
+
+              {currentUser.role === "admin" && (
+                <button
+                  onClick={() => setActiveNav({ kind: "settings" })}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                    activeNav.kind === "settings"
+                      ? "bg-teal-600 text-white"
+                      : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  }`}
+                >
+                  <Settings className="h-4 w-4" />
+                  {t.adminSettingsNav}
+                </button>
+              )}
+            </div>
+          </div>
+        </nav>
+
+        <div className="border-t border-zinc-800 p-3">
+          <div className="flex items-center justify-between rounded-xl bg-zinc-800/80 p-3">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-white">{currentUser.fullName}</p>
+              <p className="truncate text-[10px] text-zinc-400">{currentUser.position}</p>
+            </div>
+            <button
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                setCurrentUser(null);
+              }}
+              title={t.logout}
+              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-700 hover:text-rose-400"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-xs focus:border-blue-500 focus:bg-white focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* UZ / RU Switcher */}
+            <div className="flex rounded-xl border border-slate-200 p-0.5 text-xs font-bold">
+              <button
+                onClick={() => setLang("uz")}
+                className={`rounded-lg px-2.5 py-1 ${
+                  lang === "uz" ? "bg-blue-600 text-white" : "text-slate-600"
+                }`}
+              >
+                UZ
+              </button>
+              <button
+                onClick={() => setLang("ru")}
+                className={`rounded-lg px-2.5 py-1 ${
+                  lang === "ru" ? "bg-blue-600 text-white" : "text-slate-600"
+                }`}
+              >
+                RU
+              </button>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications((s) => !s)}
+                className="relative rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                    {unreadNotifs}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 z-40 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                  <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      {lang === "ru" ? "Уведомления" : "Bildirishnomalar"}
+                    </span>
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/ats", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "mark_notifications_read" }),
+                        });
+                        const data = await res.json();
+                        if (data.db) setDb(data.db);
+                      }}
+                      className="text-[11px] font-semibold text-blue-600"
+                    >
+                      {lang === "ru" ? "Прочитать все" : "O'qildi"}
+                    </button>
+                  </div>
+                  <div className="max-h-64 space-y-2 overflow-y-auto">
+                    {db.notifications.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-slate-400">—</p>
+                    ) : (
+                      db.notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (n.relatedApplicationId) {
+                              setSelectedAppId(n.relatedApplicationId);
+                              setShowNotifications(false);
+                            }
+                          }}
+                          className={`cursor-pointer rounded-xl p-2.5 text-xs ${
+                            n.read ? "bg-slate-50" : "bg-blue-50"
+                          }`}
+                        >
+                          <p className="font-bold text-slate-800">{n.title}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-600">{n.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {bannerMsg && (
+          <div
+            className={`mx-6 mt-3 flex items-center justify-between rounded-xl px-4 py-2 text-xs font-semibold text-white ${
+              bannerMsg.type === "ok" ? "bg-emerald-600" : "bg-rose-600"
+            }`}
+          >
+            <span>{bannerMsg.text}</span>
+            <button onClick={() => setBannerMsg(null)} className="underline">
+              ×
+            </button>
+          </div>
+        )}
+
+        <main className="flex-1 overflow-y-auto p-6">
+          {activeNav.kind === "vacancies" && (
+            <VacanciesPanel
+              db={db}
+              lang={lang}
+              onOpenCreateVacancy={() => setShowVacancyModal(true)}
+            />
+          )}
+
+          {activeNav.kind === "all_candidates" && (
+            <AllCandidatesPanel
+              db={db}
+              lang={lang}
+              onSelectApp={(id) => setSelectedAppId(id)}
+            />
+          )}
+
+          {activeNav.kind === "analytics" && <AnalyticsPanel db={db} />}
+
+          {activeNav.kind === "integrations" && (
+            <IntegrationsPanel db={db} lang={lang} onUpdateDb={setDb} />
+          )}
+
+          {activeNav.kind === "settings" && currentUser.role === "admin" && (
+            <AdminSettingsPanel db={db} lang={lang} onUpdateDb={setDb} />
+          )}
+
+          {activeNav.kind === "track" && (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h1 className="text-xl font-extrabold text-slate-900">
+                      {getTrackTitle(activeTrack, lang)}
+                    </h1>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                      {lang === "ru" ? trackConfig.slaLabelRu : trackConfig.slaLabelUz}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {lang === "ru" ? trackConfig.subtitleRu : trackConfig.subtitleUz}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex rounded-xl border border-slate-200 bg-white p-0.5">
+                    <button
+                      onClick={() => setViewMode("kanban")}
+                      className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+                        viewMode === "kanban" ? "bg-blue-600 text-white" : "text-slate-600"
+                      }`}
+                    >
+                      <Kanban className="h-3.5 w-3.5" /> {t.boardView}
+                    </button>
+                    <button
+                      onClick={() => setViewMode("table")}
+                      className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+                        viewMode === "table" ? "bg-blue-600 text-white" : "text-slate-600"
+                      }`}
+                    >
+                      <Table2 className="h-3.5 w-3.5" /> {t.tableView}
+                    </button>
+                  </div>
+
+                  {activeTrack === "ommaviy_yollash" && (
+                    <button
+                      onClick={() => setShowMassModal(true)}
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                    >
+                      <Building2 className="h-3.5 w-3.5" /> {t.newStore}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowVacancyModal(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> {t.addVacancy}
+                  </button>
+
+                  <button
+                    onClick={() => setShowCandidateModal(true)}
+                    className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> {t.addCandidate}
+                  </button>
+                </div>
+              </div>
+
+              {activeTrack === "ommaviy_yollash" && db.massProjects.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {db.massProjects.map((proj) => {
+                    const daysLeft = Math.max(
+                      0,
+                      Math.ceil((new Date(proj.openingDate).getTime() - Date.now()) / 86400000)
+                    );
+                    return (
+                      <div
+                        key={proj.id}
+                        className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-xs"
+                      >
+                        <div className="mb-3 flex items-start justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900">{proj.storeName}</h3>
+                            <p className="text-[11px] text-slate-500">{proj.address}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {daysLeft} {t.daysShort}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {proj.quotas.map((q) => {
+                            const pct = Math.min(
+                              100,
+                              Math.round((q.hiredCount / q.requiredCount) * 100)
+                            );
+                            return (
+                              <div key={q.position} className="rounded-xl bg-slate-50 p-2.5 text-xs">
+                                <div className="mb-1 flex justify-between font-semibold">
+                                  <span className="truncate text-slate-700">{q.position}</span>
+                                  <span className="text-indigo-700">
+                                    {q.hiredCount}/{q.requiredCount}
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                                  <div
+                                    className="h-full rounded-full bg-indigo-600"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Filters (including Lavozimlar) */}
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+                <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <Filter className="h-3.5 w-3.5" /> {t.filters}
+                </span>
+
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="all">{t.allBranches}</option>
+                  {branchesForTrack.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={positionFilter}
+                  onChange={(e) => setPositionFilter(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="all">{t.allPositions}</option>
+                  {positionsForTrack.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="all">{t.allSources}</option>
+                  <option value="Telegram bot">Telegram bot</option>
+                  <option value="OLX">OLX</option>
+                  <option value="hh.uz">hh.uz</option>
+                  <option value="Sayt">Sayt</option>
+                  <option value="Tavsiya">Tavsiya</option>
+                  <option value="Ichki nomzod">Ichki nomzod</option>
+                </select>
+
+                <button
+                  onClick={() => setOnlyDuplicates((v) => !v)}
+                  className={`flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                    onlyDuplicates
+                      ? "border-amber-300 bg-amber-50 text-amber-800"
+                      : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {t.onlyDuplicates}
+                </button>
+
+                <button
+                  onClick={() => setOnlySlaBreach((v) => !v)}
+                  className={`flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                    onlySlaBreach
+                      ? "border-rose-300 bg-rose-50 text-rose-700"
+                      : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {t.onlySlaBreach}
+                </button>
+              </div>
+
+              {/* Clean Professional Kanban Cards */}
+              {viewMode === "kanban" ? (
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {trackConfig.stages.map((stage) => {
+                    const stageApps = trackApps.filter(
+                      (a) => a.currentStage === stage.id && a.status !== "rejected"
+                    );
+                    return (
+                      <div
+                        key={stage.id}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleDropToStage(stage.id)}
+                        className="flex w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-xs"
+                      >
+                        <div
+                          className="mb-3 flex items-center justify-between border-b-2 pb-2.5"
+                          style={{ borderColor: stage.color }}
+                        >
+                          <span className="text-xs font-bold text-slate-900">
+                            {lang === "ru" ? stage.labelRu : stage.labelUz}
+                          </span>
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white">
+                            {stageApps.length}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 space-y-2.5">
+                          {stageApps.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-[11px] text-slate-400">
+                              {t.emptyColumn}
+                            </div>
+                          ) : (
+                            stageApps.map((app) => {
+                              const cand = db.candidates.find((c) => c.id === app.candidateId)!;
+                              const vac = db.vacancies.find((v) => v.id === app.vacancyId)!;
+                              const badgeClass =
+                                app.matchScore >= 75
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : app.matchScore >= 50
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-rose-50 text-rose-700 border-rose-200";
+
+                              return (
+                                <div
+                                  key={app.id}
+                                  draggable
+                                  onDragStart={() => setDraggedAppId(app.id)}
+                                  onClick={() => setSelectedAppId(app.id)}
+                                  className="cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-blue-400 hover:shadow-md"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
+                                      {cand.fullName
+                                        .split(" ")
+                                        .slice(0, 2)
+                                        .map((n) => n[0])
+                                        .join("")}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-xs font-bold text-slate-900">
+                                        {cand.fullName}
+                                      </p>
+                                      <p className="truncate text-[11px] font-medium text-blue-600">
+                                        {vac.position}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <p className="mt-2 truncate text-[11px] text-slate-500">
+                                    {vac.branch} • {cand.source}
+                                  </p>
+
+                                  {app.isDuplicateWarning && (
+                                    <div className="mt-2 flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                                      {t.duplicateBadge}
+                                    </div>
+                                  )}
+
+                                  <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2">
+                                    <span
+                                      className={`rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}
+                                    >
+                                      {app.matchScore}%
+                                    </span>
+                                    <span className="flex items-center gap-1 text-[10px] font-medium text-slate-400">
+                                      <Clock className="h-3 w-3" />
+                                      {formatStageDuration(app.stageEnteredAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500">
+                        <th className="pb-2.5 font-semibold">{lang === "ru" ? "ФИО" : "F.I.O"}</th>
+                        <th className="pb-2.5 font-semibold">{t.phoneLabel}</th>
+                        <th className="pb-2.5 font-semibold">{t.vacancyLabel}</th>
+                        <th className="pb-2.5 font-semibold">{lang === "ru" ? "Этап" : "Bosqich"}</th>
+                        <th className="pb-2.5 font-semibold">{t.matchLabel}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {trackApps.map((app) => {
+                        const cand = db.candidates.find((c) => c.id === app.candidateId)!;
+                        const vac = db.vacancies.find((v) => v.id === app.vacancyId)!;
+                        return (
+                          <tr
+                            key={app.id}
+                            onClick={() => setSelectedAppId(app.id)}
+                            className="cursor-pointer hover:bg-blue-50/40"
+                          >
+                            <td className="py-3 font-bold text-slate-900">{cand.fullName}</td>
+                            <td className="py-3 text-slate-600">{cand.phone}</td>
+                            <td className="py-3 text-slate-700">
+                              {vac.position} ({vac.branch})
+                            </td>
+                            <td className="py-3">
+                              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
+                                {getStageLabel(app.track, app.currentStage, lang)}
+                              </span>
+                            </td>
+                            <td className="py-3 font-bold">{app.matchScore}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {selectedApp && (
+        <CandidateDrawer
+          application={selectedApp}
+          db={db}
+          currentUser={currentUser}
+          lang={lang}
+          onClose={() => setSelectedAppId(null)}
+          onUpdateDb={setDb}
+        />
+      )}
+
+      {showVacancyModal && (
+        <CreateVacancyModal
+          defaultTrack={activeTrack}
+          currentUser={currentUser}
+          lang={lang}
+          onClose={() => setShowVacancyModal(false)}
+          onSuccess={(newDb) => setDb(newDb)}
+        />
+      )}
+
+      {showMassModal && (
+        <CreateMassProjectModal
+          currentUser={currentUser}
+          lang={lang}
+          onClose={() => setShowMassModal(false)}
+          onSuccess={(newDb) => setDb(newDb)}
+        />
+      )}
+
+      {showCandidateModal && (
+        <AddCandidateModal
+          db={db}
+          defaultTrack={activeTrack}
+          lang={lang}
+          onClose={() => setShowCandidateModal(false)}
+          onSuccess={(newDb, isDup) => {
+            setDb(newDb);
+            if (isDup) showBanner("err", t.duplicateBadge);
+          }}
+        />
+      )}
+    </div>
+  );
+}

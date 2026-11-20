@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: rekruting-ats
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://tivfvwwqspuvfzvtkkmc.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdmZ2d3dxc3B1dmZ6dnRra21jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxNTQzNzMsImV4cCI6MjExMDczMDM3M30.AgsUUZMbH6TJNhW5p7oosAMmAnbW7NjoQ_KLK4FdSjE
+      - key: TELEGRAM_BOT_TOKEN
+        value: 9060812387:AAECmS_1x8Oo3af4OsBU_bUw3U9ZmCeLel4
+      - key: GOOGLE_SPREADSHEET_ID
+        value: 1YA4_0soHhRSBpeyVkNq9LatOWsi_Pj6XR5yKnwm9QA4

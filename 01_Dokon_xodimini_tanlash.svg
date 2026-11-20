@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="5130" height="896" viewBox="0 0 5130 896" font-family="Arial, Helvetica, sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="20" y="20" width="5090" height="830" fill="none" stroke="#333" stroke-width="1.5"/>
+<g><rect x="20" y="20" width="30" height="830" fill="#dfe6ee" stroke="#333"/>
+<text transform="translate(39,435) rotate(-90)" text-anchor="middle" font-size="13" font-weight="bold">Do‘kon xodimini tanlash: Rekruter, do‘kon menejeri va KDP</text></g>
+<rect x="50" y="20" width="5060" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="20" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,95) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Do‘kon menejeri</text>
+<rect x="50" y="170" width="5060" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="170" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,245) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">KDP xodimi</text>
+<rect x="50" y="320" width="5060" height="230" fill="none" stroke="#555"/>
+<rect x="50" y="320" width="22" height="230" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,435) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">ERP va ATS tizimi (bot)</text>
+<rect x="50" y="550" width="5060" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="550" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,625) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Rekruter (Mutaxassis)</text>
+<rect x="50" y="700" width="5060" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="700" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,775) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Nomzod (bot)</text>
+<polyline points="179,95 250,95" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="374,95 386,95 386,245 400,245" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="524,245 536,245 536,435 550,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="674,435 686,435 686,95 700,95" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="824,95 836,95 836,435 850,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="974,435 986,435 986,625 1000,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1124,625 1136,625 1136,775 1150,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1274,775 1286,775 1286,435 1300,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1424,435 1436,435 1436,625 1450,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1574,625 1639,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1685,625 1736,625 1736,95 1750,95" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1689" y="619" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="1662,602 1662,490 1900,490" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1667" y="504" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="1874,95 1939,95" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1962,118 1962,458" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1967" y="132" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="1985,95 2036,95 2036,405 2050,405" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1989" y="89" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="2174,405 2186,405 2186,775 2200,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="2024,490 2095,490" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="2324,775 2336,775 2336,435 2350,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="2474,435 2486,435 2486,775 2500,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="2624,775 2689,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="2735,775 2845,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="2739" y="769" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="2712,752 2712,435 2800,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="2717" y="449" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="2924,435 2936,435 2936,775 2950,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3074,775 3086,775 3086,395 3100,395" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3224,395 3236,395 3236,775 3250,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3162,444 3162,480" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3374,775 3425,775 3425,435 3439,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3485,435 3589,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="3489" y="429" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="3462,458 3462,593" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="3467" y="472" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="3462,657 3462,821 3312,821 3312,807" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3635,435 3700,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="3639" y="429" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="3612,458 3612,625 3700,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="3617" y="472" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="3824,625 3836,625 3836,245 3850,245" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3824,435 4039,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="3974,245 4062,245 4062,412" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4085,435 4136,435 4136,625 4150,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4274,625 4286,625 4286,775 4300,775" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4424,775 4475,775 4475,625 4489,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4535,625 4645,625" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4512,602 4512,435 4645,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4679,435 4750,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="4874,435 4945,435" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<circle cx="162" cy="95" r="17" fill="#e8f7e4" stroke="#2e7d32" stroke-width="2"/>
+<text x="162" y="125" text-anchor="middle" font-size="10">Xodim ishdan ketmoqda</text>
+<rect x="250" y="63" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="312" y="83.0" text-anchor="middle" font-size="10" dominant-baseline="middle">KDP ga xodimning</text>
+<text x="312" y="95.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ketishi haqida xabar</text>
+<text x="312" y="107.0" text-anchor="middle" font-size="10" dominant-baseline="middle">berish</text>
+<rect x="400" y="213" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="462" y="233.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ketish sanasini</text>
+<text x="462" y="245.0" text-anchor="middle" font-size="10" dominant-baseline="middle">kiritish, shtat</text>
+<text x="462" y="257.0" text-anchor="middle" font-size="10" dominant-baseline="middle">birligini bo‘shatish</text>
+<rect x="550" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="612" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ERP: do‘kon menejeriga</text>
+<text x="612" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">bo‘sh o‘rin so‘rovini</text>
+<text x="612" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">yuborish</text>
+<rect x="700" y="63" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="762" y="83.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ish navbatini</text>
+<text x="762" y="95.0" text-anchor="middle" font-size="10" dominant-baseline="middle">biriktirib, so‘rovni</text>
+<text x="762" y="107.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tasdiqlash</text>
+<rect x="850" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="912" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ATS: so‘rov Rekruterga</text>
+<text x="912" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tushadi, tanlash</text>
+<text x="912" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">muddati boshlanadi</text>
+<rect x="1000" y="593" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="1062" y="613.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Nomzodlar oqimini</text>
+<text x="1062" y="625.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ta’minlash (bot,</text>
+<text x="1062" y="637.0" text-anchor="middle" font-size="10" dominant-baseline="middle">kollej, tavsiya)</text>
+<rect x="1150" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="1212" y="763.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Botda anketa</text>
+<text x="1212" y="775.0" text-anchor="middle" font-size="10" dominant-baseline="middle">to‘ldirish va oferta</text>
+<text x="1212" y="787.0" text-anchor="middle" font-size="10" dominant-baseline="middle">roziligini berish</text>
+<rect x="1300" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="1362" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ATS: anketani qabul</text>
+<text x="1362" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">qilish, takroriy</text>
+<text x="1362" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">nomzodni tekshirish</text>
+<rect x="1450" y="593" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="1512" y="619.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Qo‘ng‘iroq va suhbat,</text>
+<text x="1512" y="631.0" text-anchor="middle" font-size="10" dominant-baseline="middle">baholash varag‘i</text>
+<polygon points="1662,602 1685,625 1662,648 1639,625" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M1654,617 L1670,633 M1670,617 L1654,633" stroke="#b08900" stroke-width="2.4"/>
+<text x="1662" y="661" text-anchor="middle" font-size="10">Nomzod mosmi?</text>
+<rect x="1750" y="63" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="1812" y="83.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Suhbat o‘tkazish va</text>
+<text x="1812" y="95.0" text-anchor="middle" font-size="10" dominant-baseline="middle">qaror qilish (suhbat</text>
+<text x="1812" y="107.0" text-anchor="middle" font-size="10" dominant-baseline="middle">kuni)</text>
+<polygon points="1962,72 1985,95 1962,118 1939,95" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M1954,87 L1970,103 M1970,87 L1954,103" stroke="#b08900" stroke-width="2.4"/>
+<text x="1962" y="66" text-anchor="middle" font-size="10">Qaror?</text>
+<rect x="1900" y="458" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="1962" y="472.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ATS: rad javobi</text>
+<text x="1962" y="484.0" text-anchor="middle" font-size="10" dominant-baseline="middle">(rahmatnoma) yuborish,</text>
+<text x="1962" y="496.0" text-anchor="middle" font-size="10" dominant-baseline="middle">qarordan 5 ish kuni</text>
+<text x="1962" y="508.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ichida</text>
+<rect x="2050" y="373" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="2112" y="393.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Bot: test kuniga</text>
+<text x="2112" y="405.0" text-anchor="middle" font-size="10" dominant-baseline="middle">taklif (test kunining</text>
+<text x="2112" y="417.0" text-anchor="middle" font-size="10" dominant-baseline="middle">vaqti bilan)</text>
+<circle cx="2112" cy="490" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="2112" y="520" text-anchor="middle" font-size="10">Nomzod rad etildi,</text>
+<text x="2112" y="531" text-anchor="middle" font-size="10">qidiruv davom etadi</text>
+<rect x="2200" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="2262" y="769.0" text-anchor="middle" font-size="10" dominant-baseline="middle">1 kunlik test kunida</text>
+<text x="2262" y="781.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ishlash</text>
+<rect x="2350" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="2412" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Bot: ish yoqdimi,</text>
+<text x="2412" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ishga chiqishga</text>
+<text x="2412" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tayyormisiz?</text>
+<rect x="2500" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="2562" y="775.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Nomzod javob beradi</text>
+<polygon points="2712,752 2735,775 2712,798 2689,775" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M2704,767 L2720,783 M2720,767 L2704,783" stroke="#b08900" stroke-width="2.4"/>
+<text x="2712" y="811" text-anchor="middle" font-size="10">Rozimi?</text>
+<circle cx="2862" cy="775" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="2862" y="805" text-anchor="middle" font-size="10">Nomzod rad etdi,</text>
+<text x="2862" y="816" text-anchor="middle" font-size="10">qidiruv davom etadi</text>
+<rect x="2800" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="2862" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Bot: ishga chiqish</text>
+<text x="2862" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">uchun eng yaqin 2</text>
+<text x="2862" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">kunni taklif qilish</text>
+<rect x="2950" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="3012" y="769.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ishga chiqish sanasini</text>
+<text x="3012" y="781.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tanlash</text>
+<rect x="3100" y="363" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="3162" y="382.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Bot: hujjat namunasi</text>
+<text x="3162" y="394.0" text-anchor="middle" font-size="10" dominant-baseline="middle">va ro‘yxatini yuborish</text>
+<circle cx="3162" cy="427" r="17" fill="#fff" stroke="#555" stroke-width="1.6" stroke-dasharray="4,3"/>
+<circle cx="3162" cy="427" r="13" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4,3"/>
+<circle cx="3162" cy="427" r="7" fill="none" stroke="#555" stroke-width="1.2"/><path d="M3162,422 L3162,427 L3166,429" fill="none" stroke="#555" stroke-width="1.2"/>
+<text x="3162" y="457" text-anchor="middle" font-size="10">Har 15 daqiqada</text>
+<circle cx="3162" cy="497" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="3162" y="527" text-anchor="middle" font-size="10">Eslatma (20:00 gacha)</text>
+<rect x="3250" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="3312" y="751.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Hujjatlarni alohida-</text>
+<text x="3312" y="763.0" text-anchor="middle" font-size="10" dominant-baseline="middle">alohida yuborish</text>
+<text x="3312" y="775.0" text-anchor="middle" font-size="10" dominant-baseline="middle">(pasport/ID, rasm,</text>
+<text x="3312" y="787.0" text-anchor="middle" font-size="10" dominant-baseline="middle">telefon, manzil, user</text>
+<text x="3312" y="799.0" text-anchor="middle" font-size="10" dominant-baseline="middle">name)</text>
+<polygon points="3462,412 3485,435 3462,458 3439,435" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M3454,427 L3470,443 M3470,427 L3454,443" stroke="#b08900" stroke-width="2.4"/>
+<text x="3462" y="406" text-anchor="middle" font-size="10">Hujjatlar to‘liqmi?</text>
+<rect x="3400" y="593" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="3462" y="613.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Rekruter: kamchilik</text>
+<text x="3462" y="625.0" text-anchor="middle" font-size="10" dominant-baseline="middle">bo‘yicha qayta so‘rov</text>
+<text x="3462" y="637.0" text-anchor="middle" font-size="10" dominant-baseline="middle">yuborish</text>
+<polygon points="3612,412 3635,435 3612,458 3589,435" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M3604,427 L3620,443 M3620,427 L3604,443" stroke="#b08900" stroke-width="2.4"/>
+<text x="3612" y="394" text-anchor="middle" font-size="10">ATS ERP bilan</text>
+<text x="3612" y="406" text-anchor="middle" font-size="10">bog‘langanmi?</text>
+<rect x="3700" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="3762" y="417.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ERP: kartochka</text>
+<text x="3762" y="429.0" text-anchor="middle" font-size="10" dominant-baseline="middle">avtomatik yaratiladi,</text>
+<text x="3762" y="441.0" text-anchor="middle" font-size="10" dominant-baseline="middle">yuzni tanish ruxsati</text>
+<text x="3762" y="453.0" text-anchor="middle" font-size="10" dominant-baseline="middle">beriladi</text>
+<rect x="3700" y="593" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="3762" y="619.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Hujjatlarni KDP</text>
+<text x="3762" y="631.0" text-anchor="middle" font-size="10" dominant-baseline="middle">xodimiga topshirish</text>
+<rect x="3850" y="213" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="3912" y="233.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Xodimni ERP ga qayd</text>
+<text x="3912" y="245.0" text-anchor="middle" font-size="10" dominant-baseline="middle">etish, yuzni tanish</text>
+<text x="3912" y="257.0" text-anchor="middle" font-size="10" dominant-baseline="middle">qurilmasiga ulash</text>
+<polygon points="4062,412 4085,435 4062,458 4039,435" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M4054,427 L4070,443 M4070,427 L4054,443" stroke="#b08900" stroke-width="2.4"/>
+<rect x="4150" y="593" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="4212" y="619.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ishga chiqish sanasini</text>
+<text x="4212" y="631.0" text-anchor="middle" font-size="10" dominant-baseline="middle">L&amp;D ga topshirish</text>
+<rect x="4300" y="743" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="4362" y="775.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ishga chiqadi</text>
+<polygon points="4512,602 4535,625 4512,648 4489,625" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M4502,625 L4522,625 M4512,615 L4512,635" stroke="#b08900" stroke-width="2.4"/>
+<circle cx="4662" cy="625" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="4662" y="655" text-anchor="middle" font-size="10">Rekruter ishi tugadi,</text>
+<text x="4662" y="666" text-anchor="middle" font-size="10">tanlash muddati</text>
+<text x="4662" y="678" text-anchor="middle" font-size="10">yopildi</text>
+<circle cx="4662" cy="435" r="17" fill="#fff" stroke="#555" stroke-width="1.6"/>
+<circle cx="4662" cy="435" r="13" fill="none" stroke="#555" stroke-width="1.2"/>
+<circle cx="4662" cy="435" r="7" fill="none" stroke="#555" stroke-width="1.2"/><path d="M4662,430 L4662,435 L4666,437" fill="none" stroke="#555" stroke-width="1.2"/>
+<text x="4662" y="465" text-anchor="middle" font-size="10">15 kun o‘tdi</text>
+<rect x="4750" y="403" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="4812" y="423.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ATS: 15 kundan ortiq</text>
+<text x="4812" y="435.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ishlaganini qayd etish</text>
+<text x="4812" y="447.0" text-anchor="middle" font-size="10" dominant-baseline="middle">(sifat ko‘rsatkichi)</text>
+<circle cx="4962" cy="435" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="4962" y="465" text-anchor="middle" font-size="10">Sifat ko‘rsatkichi</text>
+<text x="4962" y="476" text-anchor="middle" font-size="10">qayd etildi</text>
+<rect x="60" y="861" width="14" height="10" fill="#e3f0ff" stroke="#3b6ea5"/><text x="80" y="870" font-size="10">Inson bajaradi</text>
+<rect x="190" y="861" width="14" height="10" fill="#e6f5e6" stroke="#3a8a3a"/><text x="210" y="870" font-size="10">Tizim (ERP/ATS/bot) bajaradi</text>
+</svg>

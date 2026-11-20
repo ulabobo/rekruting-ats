@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1830" height="886" viewBox="0 0 1830 886" font-family="Arial, Helvetica, sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="20" y="20" width="1790" height="820" fill="none" stroke="#333" stroke-width="1.5"/>
+<g><rect x="20" y="20" width="30" height="820" fill="#dfe6ee" stroke="#333"/>
+<text transform="translate(39,430) rotate(-90)" text-anchor="middle" font-size="13" font-weight="bold">Yangi do‘kon ochilishi: ommaviy yollashni boshlash</text></g>
+<rect x="50" y="20" width="1760" height="200" fill="none" stroke="#555"/>
+<rect x="50" y="20" width="22" height="200" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,120) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Savdo bo‘limi boshlig‘i (ROP)</text>
+<rect x="50" y="220" width="1760" height="170" fill="none" stroke="#555"/>
+<rect x="50" y="220" width="22" height="170" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,305) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">KDP xodimi</text>
+<rect x="50" y="390" width="1760" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="390" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,465) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Bosh direktor</text>
+<rect x="50" y="540" width="1760" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="540" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,615) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">ERP va ATS tizimi</text>
+<rect x="50" y="690" width="1760" height="150" fill="none" stroke="#555"/>
+<rect x="50" y="690" width="22" height="150" fill="#eef2f7" stroke="#555"/>
+<text transform="translate(65,765) rotate(-90)" text-anchor="middle" font-size="11" font-weight="bold">Rekruter (Mutaxassis)</text>
+<polyline points="179,120 250,120" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="374,120 386,120 386,305 400,305" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="524,305 536,305 536,120 550,120" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="674,120 739,120" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="785,120 836,120 836,465 850,465" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="789" y="114" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="762,143 762,351 462,351 462,337" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="767" y="157" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="974,465 1039,465" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1085,465 1136,465 1136,305 1150,305" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1089" y="459" font-size="11" font-weight="bold" fill="#000">Ha</text>
+<polyline points="1062,442 1062,363 462,363 462,337" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="1067" y="377" font-size="11" font-weight="bold" fill="#000">Yo‘q</text>
+<polyline points="1274,305 1286,305 1286,615 1300,615" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1424,615 1436,615 1436,765 1450,765" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<polyline points="1574,765 1645,765" fill="none" stroke="#333" stroke-width="1.4" marker-end="url(#ar)"/>
+<circle cx="162" cy="120" r="17" fill="#e8f7e4" stroke="#2e7d32" stroke-width="2"/>
+<text x="162" y="150" text-anchor="middle" font-size="10">Yangi do‘kon ochilishi</text>
+<text x="162" y="161" text-anchor="middle" font-size="10">rejalashtirildi</text>
+<rect x="250" y="88" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="312" y="102.0" text-anchor="middle" font-size="10" dominant-baseline="middle">KDP ga ma’lumot</text>
+<text x="312" y="114.0" text-anchor="middle" font-size="10" dominant-baseline="middle">berish: nomi, manzili,</text>
+<text x="312" y="126.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ochilish sanasi,</text>
+<text x="312" y="138.0" text-anchor="middle" font-size="10" dominant-baseline="middle">lavozimlar va soni</text>
+<rect x="400" y="273" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="462" y="287.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Shtat birliklarini</text>
+<text x="462" y="299.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tayyorlash, ROP ga</text>
+<text x="462" y="311.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tasdiqlash uchun</text>
+<text x="462" y="323.0" text-anchor="middle" font-size="10" dominant-baseline="middle">berish</text>
+<rect x="550" y="88" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="612" y="114.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Shtat birliklarini</text>
+<text x="612" y="126.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ko‘rib chiqish</text>
+<polygon points="762,97 785,120 762,143 739,120" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M754,112 L770,128 M770,112 L754,128" stroke="#b08900" stroke-width="2.4"/>
+<text x="762" y="91" text-anchor="middle" font-size="10">Qabul qilindimi?</text>
+<rect x="850" y="433" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="912" y="459.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Shtat birliklarini</text>
+<text x="912" y="471.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tasdiqlash</text>
+<polygon points="1062,442 1085,465 1062,488 1039,465" fill="#fff7d6" stroke="#b08900" stroke-width="1.6"/>
+<path d="M1054,457 L1070,473 M1070,457 L1054,473" stroke="#b08900" stroke-width="2.4"/>
+<text x="1062" y="501" text-anchor="middle" font-size="10">Tasdiqlandimi?</text>
+<rect x="1150" y="273" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="1212" y="299.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ERP: shtat</text>
+<text x="1212" y="311.0" text-anchor="middle" font-size="10" dominant-baseline="middle">birliklarini ochish</text>
+<rect x="1300" y="583" width="124" height="64" rx="9" fill="#e6f5e6" stroke="#3a8a3a" stroke-width="1.6"/>
+<text x="1362" y="603.0" text-anchor="middle" font-size="10" dominant-baseline="middle">ATS: so‘rov (kvotalar</text>
+<text x="1362" y="615.0" text-anchor="middle" font-size="10" dominant-baseline="middle">bilan) Rekruterga</text>
+<text x="1362" y="627.0" text-anchor="middle" font-size="10" dominant-baseline="middle">tushadi</text>
+<rect x="1450" y="733" width="124" height="64" rx="9" fill="#e3f0ff" stroke="#3b6ea5" stroke-width="1.6"/>
+<text x="1512" y="753.0" text-anchor="middle" font-size="10" dominant-baseline="middle">Ommaviy yollashni</text>
+<text x="1512" y="765.0" text-anchor="middle" font-size="10" dominant-baseline="middle">boshlash (do‘kon</text>
+<text x="1512" y="777.0" text-anchor="middle" font-size="10" dominant-baseline="middle">xodimi yo‘li bo‘yicha)</text>
+<circle cx="1662" cy="765" r="17" fill="#fde8e8" stroke="#b71c1c" stroke-width="4"/>
+<text x="1662" y="795" text-anchor="middle" font-size="10">Yollash boshlandi;</text>
+<text x="1662" y="806" text-anchor="middle" font-size="10">muddat va kvotalar</text>
+<text x="1662" y="818" text-anchor="middle" font-size="10">alohida belgilanadi</text>
+<rect x="60" y="851" width="14" height="10" fill="#e3f0ff" stroke="#3b6ea5"/><text x="80" y="860" font-size="10">Inson bajaradi</text>
+<rect x="190" y="851" width="14" height="10" fill="#e6f5e6" stroke="#3a8a3a"/><text x="210" y="860" font-size="10">Tizim (ERP/ATS/bot) bajaradi</text>
+</svg>

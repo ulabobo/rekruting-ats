@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Lock, LogIn, User as UserIcon } from "lucide-react";
 import { Language, User } from "@/types/ats";
 import { UI_TEXT } from "@/lib/i18n";
+import ParticleBackground from "@/components/ParticleBackground";
 
 export default function LoginScreen({
   lang,
@@ -44,8 +45,9 @@ export default function LoginScreen({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f5f1] p-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#f6f5f1] p-4">
+      <ParticleBackground />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-zinc-200 bg-white/95 p-8 shadow-lg backdrop-blur-xs">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-700 text-lg font-black text-white">

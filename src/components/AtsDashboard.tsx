@@ -34,6 +34,7 @@ import IntegrationsPanel from "@/components/IntegrationsPanel";
 import VacanciesPanel from "@/components/VacanciesPanel";
 import AllCandidatesPanel from "@/components/AllCandidatesPanel";
 import AdminSettingsPanel from "@/components/AdminSettingsPanel";
+import ParticleBackground from "@/components/ParticleBackground";
 import {
   AddCandidateModal,
   CreateMassProjectModal,
@@ -228,9 +229,10 @@ export default function AtsDashboard({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f6f5f1] text-zinc-900">
+    <div className="relative flex h-screen overflow-hidden bg-[#f6f5f1] text-zinc-900">
+      <ParticleBackground />
       {/* Sidebar - Corporate Graphite */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 text-zinc-100">
+      <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 text-zinc-100">
         <div className="flex items-center gap-2.5 border-b border-zinc-800 px-5 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-lg font-black text-white">
             A
@@ -391,7 +393,7 @@ export default function AtsDashboard({
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

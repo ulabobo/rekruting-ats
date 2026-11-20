@@ -98,6 +98,7 @@ export default function AtsDashboard({
     if (!currentUser) return;
     const timer = setInterval(async () => {
       try {
+        await fetch("/api/sheets/poll", { method: "POST" }).catch(() => {});
         const res = await fetch("/api/ats", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
@@ -407,11 +408,6 @@ export default function AtsDashboard({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-              {lang === "ru" ? "Автообновление 10с" : "Avto-yangilanish 10s"}
-            </span>
-
             {/* UZ / RU Switcher */}
             <div className="flex rounded-xl border border-slate-200 p-0.5 text-xs font-bold">
               <button

@@ -15,9 +15,11 @@ import {
   Kanban,
   Layers,
   LogOut,
+  MapPin,
   Plus,
   Search,
   Settings,
+  Star,
   Store,
   Table2,
   UserCheck,
@@ -771,12 +773,13 @@ export default function AtsDashboard({
                             stageApps.map((app) => {
                               const cand = db.candidates.find((c) => c.id === app.candidateId)!;
                               const vac = db.vacancies.find((v) => v.id === app.vacancyId)!;
-                              const badgeClass =
+                              const ratingPillClass =
                                 app.matchScore >= 75
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  ? "bg-emerald-500 text-white"
                                   : app.matchScore >= 50
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-rose-50 text-rose-700 border-rose-200";
+                                  ? "bg-amber-400 text-white"
+                                  : "bg-rose-500 text-white";
+                              const starRating = (app.matchScore / 20).toFixed(1);
 
                               return (
                                 <div
@@ -784,10 +787,11 @@ export default function AtsDashboard({
                                   draggable
                                   onDragStart={() => setDraggedAppId(app.id)}
                                   onClick={() => setSelectedAppId(app.id)}
-                                  className="cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-blue-400 hover:shadow-md"
+                                  className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_4px_20px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-[#5865f2]/40 hover:shadow-md"
                                 >
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
+                                  {/* Avatar + Name + Position (2-rasm uslubida) */}
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5865f2] to-[#3b82f6] text-xs font-extrabold text-white shadow-xs">
                                       {cand.fullName
                                         .split(" ")
                                         .slice(0, 2)
@@ -795,36 +799,70 @@ export default function AtsDashboard({
                                         .join("")}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                      <p className="truncate text-xs font-bold text-slate-900">
+                                      <p className="truncate text-sm font-bold text-slate-900">
                                         {cand.fullName}
                                       </p>
-                                      <p className="truncate text-[11px] font-medium text-blue-600">
+                                      <p className="truncate text-xs text-slate-400">
                                         {vac.position}
                                       </p>
                                     </div>
                                   </div>
 
-                                  <p className="mt-2 truncate text-[11px] text-slate-500">
-                                    {vac.branch} • {cand.source}
-                                  </p>
-
-                                  {app.isDuplicateWarning && (
-                                    <div className="mt-2 flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                                      <AlertTriangle className="h-3 w-3 shrink-0" />
-                                      {t.duplicateBadge}
-                                    </div>
-                                  )}
-
-                                  <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2">
+                                  {/* Rating Pill + Location */}
+                                  <div className="mt-3 flex items-center gap-2 text-xs">
                                     <span
-                                      className={`rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}
+                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${ratingPillClass}`}
                                     >
-                                      {app.matchScore}%
+                                      <Star className="h-3 w-3 fill-white text-white" />
+                                      {starRating}
                                     </span>
-                                    <span className="flex items-center gap-1 text-[10px] font-medium text-slate-400">
-                                      <Clock className="h-3 w-3" />
-                                      {formatStageDuration(app.stageEnteredAt)}
+                                    <span className="flex min-w-0 items-center gap-1 truncate text-[11px] font-medium text-slate-600">
+                                      <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                                      <span className="truncate">
+                                        {vac.branch}
+                                      </span>
                                     </span>
+                                  </div>
+
+                                  {/* Experience & Source */}
+                                  <div className="mt-2.5 space-y-0.5 text-[11px] text-slate-500">
+                                    <p>
+                                      {cand.experienceYears || "Tajriba ko'rsatilmagan"} •{" "}
+                                      {cand.source}
+                                    </p>
+                                  </div>
+
+                                  {/* Tags */}
+                                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                    {cand.tags.slice(0, 2).map((tg) => (
+                                      <span
+                                        key={tg}
+                                        className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600"
+                                      >
+                                        {tg}
+                                      </span>
+                                    ))}
+                                    {app.isDuplicateWarning && (
+                                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                                        {t.duplicateBadge}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Bottom Row: Time + Blue Pill Button */}
+                                  <div className="mt-3.5 flex items-center justify-between gap-2 pt-1">
+                                    <div className="text-[11px] font-semibold text-slate-600">
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3 text-slate-400" />
+                                        {formatStageDuration(app.stageEnteredAt)}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="rounded-full bg-[#3b6ff5] px-4 py-1.5 text-[11px] font-bold text-white shadow-xs transition hover:bg-[#2557d6]"
+                                    >
+                                      {lang === "ru" ? "Открыть" : "Ko'rish"}
+                                    </button>
                                   </div>
                                 </div>
                               );

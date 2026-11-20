@@ -53,7 +53,7 @@ export default function LoginScreen({
           "radial-gradient(circle at 12% 85%, #6c72ff 0%, transparent 48%), radial-gradient(circle at 30% 15%, #4ea5ff 0%, transparent 50%), radial-gradient(circle at 90% 45%, #c7e2f8 0%, #dbeafe 100%)",
       }}
     >
-      <ParticleBackground />
+      <ParticleBackground intense />
 
       {/* Top bar: Language switcher */}
       <div className="relative z-10 mb-6 flex w-full max-w-md items-center justify-between px-2">

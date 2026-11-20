@@ -4,13 +4,17 @@ import React, { useMemo, useState } from "react";
 import {
   Banknote,
   Briefcase,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Crown,
+  Filter,
   LayoutGrid,
   Package,
   Plus,
   Search,
   Table2,
+  X,
 } from "lucide-react";
 import { AtsDatabase, Language, TrackType, User } from "@/types/ats";
 import { TRACK_CONFIGS, getTrackTitle } from "@/lib/stages";
@@ -63,6 +67,12 @@ const CARD_THEMES = [
   { bg: "from-[#ff6b6b] to-[#ff4d57]", pill: "bg-[#d6000f] text-white" },
 ];
 
+interface VacFilterState {
+  branches: string[];
+  tracks: TrackType[];
+  statuses: string[];
+}
+
 export default function VacanciesPanel({
   db,
   currentUser,
@@ -78,9 +88,13 @@ export default function VacanciesPanel({
 }) {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [search, setSearch] = useState("");
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [trackFilter, setTrackFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [filters, setFilters] = useState<VacFilterState>({
+    branches: [],
+    tracks: [],
+    statuses: [],
+  });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draft, setDraft] = useState<VacFilterState>(filters);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   const branches = useMemo(
@@ -100,19 +114,25 @@ export default function VacanciesPanel({
           return false;
         }
       }
-      if (branchFilter !== "all" && v.branch !== branchFilter) return false;
-      if (trackFilter !== "all" && v.track !== trackFilter) return false;
-      if (statusFilter !== "all" && v.status !== statusFilter) return false;
+      if (filters.branches.length > 0 && !filters.branches.includes(v.branch)) return false;
+      if (filters.tracks.length > 0 && !filters.tracks.includes(v.track)) return false;
+      if (filters.statuses.length > 0 && !filters.statuses.includes(v.status)) return false;
       return true;
     });
-  }, [db.vacancies, search, branchFilter, trackFilter, statusFilter]);
+  }, [db.vacancies, search, filters]);
 
-  // Top Analytics stats
-  const totalCount = db.vacancies.length;
-  const openCount = db.vacancies.filter((v) => v.status === "open").length;
-  const acceptedCount = db.vacancies.filter((v) => v.status === "accepted").length;
-  const totalHeadcount = db.vacancies.reduce((s, v) => s + v.headcount, 0);
-  const filledHeadcount = db.vacancies.reduce((s, v) => s + v.filledCount, 0);
+  // Top Analytics stats dynamically calculated from filtered vacancies!
+  const totalCount = filtered.length;
+  const openCount = filtered.filter((v) => v.status === "open").length;
+  const acceptedCount = filtered.filter((v) => v.status === "accepted").length;
+  const totalHeadcount = filtered.reduce((s, v) => s + v.headcount, 0);
+  const filledHeadcount = filtered.reduce((s, v) => s + v.filledCount, 0);
+
+  const activeFilterCount =
+    filters.branches.length + filters.tracks.length + filters.statuses.length;
+
+  const toggleArr = <T,>(arr: T[], item: T): T[] =>
+    arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
 
   const handleAcceptVacancy = async (vacancyId: string) => {
     setAcceptingId(vacancyId);
@@ -188,11 +208,11 @@ export default function VacanciesPanel({
         </div>
       </div>
 
-      {/* Top Analytics Row */}
+      {/* Top Analytics Row (Filterga moslashadi!) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-xs">
           <p className="text-[11px] font-semibold text-slate-400">
-            {lang === "ru" ? "Всего вакансий" : "Jami vakansiyalar"}
+            {lang === "ru" ? "Вакансий (по фильтру)" : "Jami vakansiyalar"}
           </p>
           <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalCount}</p>
         </div>
@@ -218,10 +238,10 @@ export default function VacanciesPanel({
         </div>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-xs">
-        <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      {/* Search + Professional FilterPopover */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-[240px] flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -230,46 +250,195 @@ export default function VacanciesPanel({
                 ? "Поиск по должности, филиалу..."
                 : "Lavozim, filial yoki shahar bo'yicha qidirish..."
             }
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs focus:border-[#5865f2] focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs shadow-2xs focus:border-[#5865f2] focus:outline-none"
           />
         </div>
 
-        <select
-          value={branchFilter}
-          onChange={(e) => setBranchFilter(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-        >
-          <option value="all">{lang === "ru" ? "Все филиалы" : "Barcha filiallar"}</option>
-          {branches.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(filters);
+                setFilterOpen((o) => !o);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs transition hover:border-[#5865f2]/40"
+            >
+              <Filter className="h-3.5 w-3.5 text-slate-600" />
+              <span>{lang === "ru" ? "Фильтры" : "Filtrlar"}</span>
+              {activeFilterCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#1e293b] px-1.5 text-[10px] font-extrabold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+            </button>
 
-        <select
-          value={trackFilter}
-          onChange={(e) => setTrackFilter(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-        >
-          <option value="all">{lang === "ru" ? "Все направления" : "Barcha yo'nalishlar"}</option>
-          {(Object.keys(TRACK_CONFIGS) as TrackType[]).map((tr) => (
-            <option key={tr} value={tr}>
-              {getTrackTitle(tr, lang)}
-            </option>
-          ))}
-        </select>
+            {filters.branches.map((b) => (
+              <span
+                key={b}
+                className="inline-flex items-center gap-1 rounded-full bg-[#4f7df3] px-2.5 py-1 text-[11px] font-semibold text-white"
+              >
+                {b}
+                <button
+                  onClick={() =>
+                    setFilters({
+                      ...filters,
+                      branches: filters.branches.filter((x) => x !== b),
+                    })
+                  }
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-        >
-          <option value="all">{lang === "ru" ? "Все статусы" : "Barcha holatlar"}</option>
-          <option value="open">{lang === "ru" ? "Новая" : "Yangi"}</option>
-          <option value="accepted">{lang === "ru" ? "Принята" : "Qabul qilindi"}</option>
-          <option value="closed">{lang === "ru" ? "Закрыта" : "Yopiq"}</option>
-        </select>
+            {filters.tracks.map((tr) => (
+              <span
+                key={tr}
+                className="inline-flex items-center gap-1 rounded-full bg-[#4f7df3] px-2.5 py-1 text-[11px] font-semibold text-white"
+              >
+                {getTrackTitle(tr, lang)}
+                <button
+                  onClick={() =>
+                    setFilters({
+                      ...filters,
+                      tracks: filters.tracks.filter((x) => x !== tr),
+                    })
+                  }
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {filterOpen && (
+            <div className="absolute left-0 z-40 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.16)]">
+              <div className="absolute -top-1.5 left-6 h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
+              <div className="space-y-4 p-5 text-xs">
+                <div>
+                  <p className="mb-2 font-bold text-slate-800">
+                    {lang === "ru" ? "Филиалы" : "Filiallar"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-2">
+                    {branches.map((b) => {
+                      const sel = draft.branches.includes(b);
+                      return (
+                        <button
+                          key={b}
+                          type="button"
+                          onClick={() =>
+                            setDraft({ ...draft, branches: toggleArr(draft.branches, b) })
+                          }
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                            sel
+                              ? "bg-[#4f7df3] text-white"
+                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {b}
+                          {sel && <X className="h-3 w-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-bold text-slate-800">
+                    {lang === "ru" ? "Направления" : "Yo'nalishlar"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-2">
+                    {(Object.keys(TRACK_CONFIGS) as TrackType[]).map((tr) => {
+                      const sel = draft.tracks.includes(tr);
+                      return (
+                        <button
+                          key={tr}
+                          type="button"
+                          onClick={() =>
+                            setDraft({ ...draft, tracks: toggleArr(draft.tracks, tr) })
+                          }
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                            sel
+                              ? "bg-[#4f7df3] text-white"
+                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {getTrackTitle(tr, lang)}
+                          {sel && <X className="h-3 w-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-bold text-slate-800">
+                    {lang === "ru" ? "Статус" : "Holat"}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { id: "open", label: lang === "ru" ? "Новая" : "Yangi" },
+                      { id: "accepted", label: lang === "ru" ? "Принята" : "Qabul qilindi" },
+                      { id: "closed", label: lang === "ru" ? "Закрыта" : "Yopiq" },
+                    ].map((st) => {
+                      const checked = draft.statuses.includes(st.id);
+                      return (
+                        <label
+                          key={st.id}
+                          onClick={() =>
+                            setDraft({
+                              ...draft,
+                              statuses: toggleArr(draft.statuses, st.id),
+                            })
+                          }
+                          className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-slate-700"
+                        >
+                          <span
+                            className={`flex h-4 w-4 items-center justify-center rounded border transition ${
+                              checked
+                                ? "border-[#4f7df3] bg-[#4f7df3] text-white"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {checked && <Check className="h-3 w-3" />}
+                          </span>
+                          {st.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 rounded-b-2xl border-t border-slate-100 bg-slate-50/80 px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const empty: VacFilterState = { branches: [], tracks: [], statuses: [] };
+                    setDraft(empty);
+                    setFilters(empty);
+                    setFilterOpen(false);
+                  }}
+                  className="rounded-full px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/70"
+                >
+                  {lang === "ru" ? "Сбросить" : "Tozalash"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters(draft);
+                    setFilterOpen(false);
+                  }}
+                  className="rounded-full bg-[#2b3a67] px-6 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#1e294b]"
+                >
+                  {lang === "ru" ? "Применить" : "Saqlash"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Cards or Table */}

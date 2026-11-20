@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -91,6 +91,23 @@ export default function AtsDashboard({
     setBannerMsg({ type, text });
     setTimeout(() => setBannerMsg(null), 5000);
   };
+
+  // Avtomatik fon yangilanishi (har 10 soniyada F5 bosmasdan)
+  useEffect(() => {
+    if (!currentUser) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch("/api/ats", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.db) setDb(data.db);
+        }
+      } catch {
+        // tarmoq xatosida jim o'tadi
+      }
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [currentUser]);
 
   const activeTrack: TrackType =
     activeNav.kind === "track" ? activeNav.track : "dokon_xodimi";
@@ -388,6 +405,11 @@ export default function AtsDashboard({
           </div>
 
           <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              {lang === "ru" ? "Автообновление 10с" : "Avto-yangilanish 10s"}
+            </span>
+
             {/* UZ / RU Switcher */}
             <div className="flex rounded-xl border border-slate-200 p-0.5 text-xs font-bold">
               <button

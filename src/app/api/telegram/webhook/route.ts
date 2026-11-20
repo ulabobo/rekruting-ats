@@ -74,6 +74,31 @@ async function tgCall(token: string, method: string, body: Record<string, unknow
   });
 }
 
+async function editOrSend(
+  token: string,
+  chatId: number,
+  messageId: number | undefined,
+  text: string,
+  replyMarkup?: Record<string, unknown>
+) {
+  if (messageId) {
+    await tgCall(token, "editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "HTML",
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    });
+  } else {
+    await tgCall(token, "sendMessage", {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    });
+  }
+}
+
 async function askNextQuestion(token: string, chatId: number, st: SessionState) {
   switch (st.step) {
     case "hasExp":
@@ -235,14 +260,31 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
           ],
         },
       });
-    case "consent":
+    case "consent": {
+      const a = st.answers;
+      const summary =
+        `📋 <b>Arizangizni tekshiring:</b>\n\n` +
+        `📍 <b>Hudud:</b> ${a.region || "—"} / ${a.city || "—"}\n` +
+        `🏢 <b>Filial:</b> ${a.branch || "—"}\n` +
+        `💼 <b>Lavozim:</b> ${a.position || "—"}\n` +
+        `🕒 <b>Smena:</b> ${a.shift || "—"}\n` +
+        `👤 <b>F.I.O:</b> ${a.lastName || ""} ${a.firstName || ""}\n` +
+        `📱 <b>Telefon:</b> ${a.phone || "—"}\n` +
+        `🎓 <b>Ma'lumot:</b> ${a.education || "—"}\n` +
+        `🛠 <b>Tajriba:</b> ${a.totalExp || "—"}\n\n` +
+        `Ma'lumotlarni qayta ishlashga rozilik bildirib yuborasizmi?`;
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "Shaxsiy ma'lumotlaringizni qayta ishlashga rozilik bildirasizmi?",
+        text: summary,
+        parse_mode: "HTML",
         reply_markup: {
-          inline_keyboard: [[{ text: "✅ Roziman, arizani yuborish", callback_data: "consent:yes" }]],
+          inline_keyboard: [
+            [{ text: "✅ Tasdiqlash va yuborish", callback_data: "consent:yes" }],
+            [{ text: "🔄 Qaytadan boshlash", callback_data: "cancel" }],
+          ],
         },
       });
+    }
   }
 }
 
@@ -257,23 +299,52 @@ export async function POST(req: NextRequest) {
     if (update.callback_query) {
       const cq = update.callback_query;
       const chatId = cq.message?.chat?.id as number;
+      const msgId = cq.message?.message_id as number | undefined;
       const data = cq.data as string;
 
       await tgCall(token, "answerCallbackQuery", { callback_query_id: cq.id });
+
+      if (data === "cancel") {
+        sessions.set(chatId, { mode: "apply", step: "idle", answers: {} });
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          "❌ Ariza bekor qilindi. Yangidan boshlash uchun «📋 Bo'sh ish o'rinlari» tugmasini bosing."
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data === "back:reg") {
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          "Qaysi hududda (yoki Bosh ofis / Ombor) ishlamoqchisiz?",
+          {
+            inline_keyboard: REGIONS.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
 
       // 1. Viloyat / Bosh ofis / Toshkent ombor tanlandi
       if (data.startsWith("reg:")) {
         const region = data.replace("reg:", "");
         const cities = CITIES_BY_REGION[region] || ["Toshkent"];
         sessions.set(chatId, { mode: "apply", step: "idle", region, answers: { region } });
-        await tgCall(token, "sendMessage", {
-          chat_id: chatId,
-          text: `📍 Hudud: <b>${region}</b>\nEndi shaharni tanlang:`,
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: cities.map((c) => [{ text: c, callback_data: `city:${c}` }]),
-          },
-        });
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          `📍 Hudud: <b>${region}</b>\nEndi shaharni tanlang:`,
+          {
+            inline_keyboard: [
+              ...cities.map((c) => [{ text: `🏙 ${c}`, callback_data: `city:${c}` }]),
+              [{ text: "⬅️ Orqaga", callback_data: "back:reg" }],
+            ],
+          }
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -293,29 +364,32 @@ export async function POST(req: NextRequest) {
 
         if (vacs && vacs.length > 0) {
           const branches = Array.from(new Set(vacs.map((v) => v.branch)));
-          await tgCall(token, "sendMessage", {
-            chat_id: chatId,
-            text: `🏙 <b>${city}</b> shahridagi filiallar (bo'sh o'rinlar bor):`,
-            parse_mode: "HTML",
-            reply_markup: {
-              inline_keyboard: branches.map((b) => [
-                { text: `🏢 ${b}`, callback_data: `branch:${b}` },
-              ]),
-            },
-          });
-        } else {
-          await tgCall(token, "sendMessage", {
-            chat_id: chatId,
-            text:
-              `Hozircha <b>${city}</b> shahrida bo'sh ish o'rni mavjud emas.\n\n` +
-              `Ammo yangi joy ochilishi bilan sizga xabar beramiz! Ungacha zaxira anketasini to'ldirib qo'yishingiz mumkin (arizangiz «Qiziqish bildirganlar» ro'yxatiga tushadi):`,
-            parse_mode: "HTML",
-            reply_markup: {
+          await editOrSend(
+            token,
+            chatId,
+            msgId,
+            `🏙 <b>${city}</b> shahridagi filiallar (bo'sh o'rinlar bor):`,
+            {
               inline_keyboard: [
-                [{ text: "📝 Zaxira anketasini to'ldirish", callback_data: `reserve:${city}` }],
+                ...branches.map((b) => [{ text: `🏢 ${b}`, callback_data: `branch:${b}` }]),
+                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || "Toshkent shahri"}` }],
               ],
-            },
-          });
+            }
+          );
+        } else {
+          await editOrSend(
+            token,
+            chatId,
+            msgId,
+            `Hozircha <b>${city}</b> shahrida bo'sh ish o'rni mavjud emas.\n\n` +
+              `Ammo yangi joy ochilishi bilan sizga xabar beramiz! Ungacha anketani to'ldirib qo'yishingiz mumkin:`,
+            {
+              inline_keyboard: [
+                [{ text: "📝 Anketani to'ldirish", callback_data: `reserve:${city}` }],
+                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || "Toshkent shahri"}` }],
+              ],
+            }
+          );
         }
         return NextResponse.json({ ok: true });
       }
@@ -334,16 +408,20 @@ export async function POST(req: NextRequest) {
           .eq("status", "open")
           .eq("branch", branch);
 
-        await tgCall(token, "sendMessage", {
-          chat_id: chatId,
-          text: `🏢 <b>${branch}</b> — Lavozimni tanlang:`,
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: (vacs || []).map((v) => [
-              { text: `${v.position} (${v.salaryBand || v.salary_band})`, callback_data: `vac:${v.id}` },
-            ]),
-          },
-        });
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          `🏢 <b>${branch}</b> — Lavozimni tanlang:`,
+          {
+            inline_keyboard: [
+              ...(vacs || []).map((v) => [
+                { text: `💼 ${v.position} (${v.salary_band})`, callback_data: `vac:${v.id}` },
+              ]),
+              [{ text: "⬅️ Orqaga", callback_data: `city:${st.city || "Toshkent"}` }],
+            ],
+          }
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -374,14 +452,18 @@ export async function POST(req: NextRequest) {
           prof?.expectation_uz ||
           `✨ <b>${vac.position}</b> lavozimi bo'yicha sizdan mas'uliyat, xushmuomalalik va jamoaviy ishlashni kutamiz!`;
 
-        await tgCall(token, "sendMessage", {
-          chat_id: chatId,
-          text: `${expText}\n\n🕒 Qulay smenani tanlang:`,
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: SHIFTS.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
-          },
-        });
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          `${expText}\n\n🕒 Qulay smenani tanlang:`,
+          {
+            inline_keyboard: [
+              ...SHIFTS.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
+              [{ text: "⬅️ Orqaga", callback_data: `branch:${st.branch || vac.branch}` }],
+            ],
+          }
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -538,11 +620,13 @@ export async function POST(req: NextRequest) {
         .select("*")
         .eq("candidate_id", cand.id);
       const lines = (apps || []).map((a) => {
-        const st =
-          TRACK_CONFIGS[a.track as TrackType]?.stages.find(
-            (s) => s.id === a.current_stage
-          )?.labelUz || a.current_stage;
-        return `• Bosqich: <b>${st}</b> | Holat: ${a.status}`;
+        const stages = TRACK_CONFIGS[a.track as TrackType]?.stages || [];
+        const curIdx = stages.findIndex((s) => s.id === a.current_stage);
+        const stLabel = stages[curIdx]?.labelUz || a.current_stage;
+        const bar = stages
+          .map((_, idx) => (idx <= curIdx ? "🟢" : "⚪"))
+          .join(" ");
+        return `💼 Bosqich: <b>${stLabel}</b>\n${bar}`;
       });
       await sendTelegramMessage(
         String(chatId),

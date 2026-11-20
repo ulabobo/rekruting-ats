@@ -37,6 +37,7 @@ import VacanciesPanel from "@/components/VacanciesPanel";
 import AllCandidatesPanel from "@/components/AllCandidatesPanel";
 import AdminSettingsPanel from "@/components/AdminSettingsPanel";
 import ParticleBackground from "@/components/ParticleBackground";
+import FilterPopover, { FilterState } from "@/components/FilterPopover";
 import {
   AddCandidateModal,
   CreateMassProjectModal,
@@ -75,11 +76,13 @@ export default function AtsDashboard({
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [positionFilter, setPositionFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [onlyDuplicates, setOnlyDuplicates] = useState(false);
-  const [onlySlaBreach, setOnlySlaBreach] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    branches: [],
+    positions: [],
+    sources: [],
+    onlyDuplicates: false,
+    onlySlaBreach: false,
+  });
 
   // Modals & Drawers
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
@@ -146,11 +149,11 @@ export default function AtsDashboard({
           return false;
         }
       }
-      if (branchFilter !== "all" && vac.branch !== branchFilter) return false;
-      if (positionFilter !== "all" && vac.position !== positionFilter) return false;
-      if (sourceFilter !== "all" && cand.source !== sourceFilter) return false;
-      if (onlyDuplicates && !app.isDuplicateWarning) return false;
-      if (onlySlaBreach) {
+      if (filters.branches.length > 0 && !filters.branches.includes(vac.branch)) return false;
+      if (filters.positions.length > 0 && !filters.positions.includes(vac.position)) return false;
+      if (filters.sources.length > 0 && !filters.sources.includes(cand.source)) return false;
+      if (filters.onlyDuplicates && !app.isDuplicateWarning) return false;
+      if (filters.onlySlaBreach) {
         const openDays = Math.floor(
           (Date.now() - new Date(vac.approvedAt).getTime()) / 86400000
         );
@@ -158,16 +161,7 @@ export default function AtsDashboard({
       }
       return true;
     });
-  }, [
-    db,
-    activeTrack,
-    searchQuery,
-    branchFilter,
-    positionFilter,
-    sourceFilter,
-    onlyDuplicates,
-    onlySlaBreach,
-  ]);
+  }, [db, activeTrack, searchQuery, filters]);
 
   if (!currentUser) {
     return (
@@ -277,8 +271,13 @@ export default function AtsDashboard({
                     key={tr}
                     onClick={() => {
                       setActiveNav({ kind: "track", track: tr });
-                      setBranchFilter("all");
-                      setPositionFilter("all");
+                      setFilters({
+                        branches: [],
+                        positions: [],
+                        sources: [],
+                        onlyDuplicates: false,
+                        onlySlaBreach: false,
+                      });
                     }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${
                       isActive
@@ -667,75 +666,15 @@ export default function AtsDashboard({
                 </div>
               )}
 
-              {/* Filters (including Lavozimlar) */}
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
-                <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
-                  <Filter className="h-3.5 w-3.5" /> {t.filters}
-                </span>
-
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-                >
-                  <option value="all">{t.allBranches}</option>
-                  {branchesForTrack.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={positionFilter}
-                  onChange={(e) => setPositionFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-                >
-                  <option value="all">{t.allPositions}</option>
-                  {positionsForTrack.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
-                >
-                  <option value="all">{t.allSources}</option>
-                  <option value="Telegram bot">Telegram bot</option>
-                  <option value="OLX">OLX</option>
-                  <option value="hh.uz">hh.uz</option>
-                  <option value="Sayt">Sayt</option>
-                  <option value="Tavsiya">Tavsiya</option>
-                  <option value="Ichki nomzod">Ichki nomzod</option>
-                </select>
-
-                <button
-                  onClick={() => setOnlyDuplicates((v) => !v)}
-                  className={`flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
-                    onlyDuplicates
-                      ? "border-amber-300 bg-amber-50 text-amber-800"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {t.onlyDuplicates}
-                </button>
-
-                <button
-                  onClick={() => setOnlySlaBreach((v) => !v)}
-                  className={`flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
-                    onlySlaBreach
-                      ? "border-rose-300 bg-rose-50 text-rose-700"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  {t.onlySlaBreach}
-                </button>
+              {/* Professional Filter Popover (Rasmdagidek) */}
+              <div className="py-1">
+                <FilterPopover
+                  lang={lang}
+                  availableBranches={branchesForTrack}
+                  availablePositions={positionsForTrack}
+                  value={filters}
+                  onChange={setFilters}
+                />
               </div>
 
               {/* Clean Professional Kanban Cards */}

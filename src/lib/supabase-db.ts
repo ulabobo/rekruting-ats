@@ -61,6 +61,28 @@ export async function authenticateUser(
   };
 }
 
+export async function authenticateByEmail(email: string): Promise<User | null> {
+  const sb = getSupabase();
+  const normalized = email.trim().toLowerCase();
+  const { data, error } = await sb
+    .from("ats_users")
+    .select("*")
+    .or(`email.ilike.${normalized},login.ilike.${normalized}`)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    id: data.id,
+    login: data.login,
+    fullName: data.full_name,
+    role: data.role,
+    allowedTracks: data.allowed_tracks || [],
+    position: data.position,
+    createdAt: data.created_at,
+  };
+}
+
 export async function getUserById(userId: string): Promise<User | null> {
   const sb = getSupabase();
   const { data } = await sb

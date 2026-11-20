@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { Language, User } from "@/types/ats";
 import { UI_TEXT } from "@/lib/i18n";
 import ParticleBackground from "@/components/ParticleBackground";
@@ -147,6 +148,46 @@ export default function LoginScreen({
             className="mt-2 w-full rounded-xl bg-[#5865f2] py-2.5 text-sm font-bold text-white shadow-md shadow-[#5865f2]/25 transition hover:bg-[#4752c4] disabled:opacity-50"
           >
             {loading ? "..." : t.loginButton}
+          </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={async () => {
+              setError("");
+              const sb = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+              );
+              const { error: oauthErr } = await sb.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                  redirectTo: `${window.location.origin}/auth/callback`,
+                },
+              });
+              if (oauthErr) setError(oauthErr.message);
+            }}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.3 0 6.08-1.09 8.1-2.96l-3.88-3.05c-1.09.73-2.48 1.16-4.22 1.16-3.24 0-5.98-2.19-6.96-5.13H1.03v3.14C3.04 21.15 7.21 24 12 24Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.04 14.02c-.25-.73-.39-1.52-.39-2.34 0-.82.14-1.61.39-2.34V6.2H1.03C.37 7.51 0 9.01 0 10.68s.37 3.17 1.03 4.48l4.01-3.14Z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.79 0 3.4.62 4.67 1.82l3.5-3.5C18.07 1.12 15.29 0 12 0 7.21 0 3.04 2.85 1.03 7.06l4.01 3.14c.98-2.94 3.72-5.13 6.96-5.13Z"
+              />
+            </svg>
+            {lang === "ru" ? "Войти через Google" : "Google bilan kirish"}
           </button>
         </form>
       </div>

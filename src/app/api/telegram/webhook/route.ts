@@ -359,7 +359,7 @@ export async function POST(req: NextRequest) {
         const { data: vacs } = await sb
           .from("ats_vacancies")
           .select("*")
-          .eq("status", "open")
+          .in("status", ["open", "accepted"])
           .ilike("city", city);
 
         if (vacs && vacs.length > 0) {
@@ -405,7 +405,7 @@ export async function POST(req: NextRequest) {
         const { data: vacs } = await sb
           .from("ats_vacancies")
           .select("*")
-          .eq("status", "open")
+          .in("status", ["open", "accepted"])
           .eq("branch", branch);
 
         await editOrSend(

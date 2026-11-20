@@ -382,7 +382,9 @@ export function AddCandidateModal({
   onClose: () => void;
   onSuccess: (db: AtsDatabase, isDuplicate: boolean) => void;
 }) {
-  const openVacancies = db.vacancies.filter((v) => v.status === "open");
+  const openVacancies = db.vacancies.filter(
+    (v) => v.status === "open" || v.status === "accepted"
+  );
   const defaultVac = openVacancies.find((v) => v.track === defaultTrack) || openVacancies[0];
 
   const [fullName, setFullName] = useState("");

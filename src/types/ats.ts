@@ -70,7 +70,7 @@ export interface Vacancy {
   massProjectId?: string;
   responsibleRecruiterId: string;
   hiringManagerName: string;
-  status: "open" | "closed" | "paused";
+  status: "open" | "accepted" | "closed" | "paused";
 }
 
 export interface Candidate {

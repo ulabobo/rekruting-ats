@@ -807,30 +807,67 @@ export async function transferToLms(params: {
   return { ok: true };
 }
 
-export async function notifyReservedCandidatesForCity(params: {
-  city: string;
-  position: string;
-  branch: string;
+export async function notifyReservedCandidatesGrouped(
+  openedList: { city: string; position: string; branch: string }[]
+) {
+  if (openedList.length === 0) return;
+  const sb = getSupabase();
+
+  const byCity = new Map<string, { position: string; branch: string }[]>();
+  for (const item of openedList) {
+    const key = item.city.trim().toLowerCase();
+    const arr = byCity.get(key) || [];
+    arr.push({ position: item.position, branch: item.branch });
+    byCity.set(key, arr);
+  }
+
+  for (const [cityKey, items] of byCity.entries()) {
+    const { data: cands } = await sb
+      .from("ats_candidates")
+      .select("full_name, telegram_chat_id")
+      .ilike("city", cityKey)
+      .not("telegram_chat_id", "is", null);
+
+    if (!cands || cands.length === 0) continue;
+
+    const listText = items
+      .map((x) => `• <b>${x.position}</b> (${x.branch})`)
+      .join("\n");
+
+    for (const cand of cands) {
+      await sendTelegramMessage(
+        cand.telegram_chat_id,
+        `🎉 <b>Yangi bo'sh ish o'rinlari ochildi!</b>\n\n` +
+          `${listText}\n\n` +
+          `Ariza topshirish uchun /start tugmasini bosing.`
+      );
+    }
+  }
+}
+
+export async function acceptVacancy(params: {
+  vacancyId: string;
+  recruiterId: string;
+  recruiterName: string;
 }) {
   const sb = getSupabase();
-  const { data: reserved } = await sb
-    .from("ats_candidates")
-    .select("*")
-    .ilike("city", params.city.trim())
-    .not("telegram_chat_id", "is", null);
+  await sb
+    .from("ats_vacancies")
+    .update({
+      status: "accepted",
+      responsible_recruiter_id: params.recruiterId,
+    })
+    .eq("id", params.vacancyId);
 
-  if (!reserved || reserved.length === 0) return;
-
-  for (const cand of reserved) {
-    const tags = (cand.tags as string[]) || [];
-    if (!tags.includes("Zaxira")) continue;
-    await sendTelegramMessage(
-      cand.telegram_chat_id,
-      `🎉 <b>Xushxabar, ${cand.full_name}!</b>\n\n` +
-        `Siz kutgan <b>${params.city}</b> shahrida <b>${params.position}</b> (${params.branch}) bo'yicha bo'sh ish o'rni ochildi!\n` +
-        `Ariza topshirish uchun /start tugmasini bosing.`
-    );
-  }
+  await logAudit({
+    entityType: "vacancy",
+    entityId: params.vacancyId,
+    actorId: params.recruiterId,
+    actorName: params.recruiterName,
+    action: `Vakansiya qabul qilindi (${params.recruiterName})`,
+    oldValue: "open",
+    newValue: "accepted",
+  });
 }
 
 export async function createReserveCandidate(input: {
@@ -1000,12 +1037,6 @@ export async function createVacancy(params: {
     actorName: params.actorName,
     action: `Yangi vakansiya ochildi: ${params.position} (${city}, ${params.branch})`,
   });
-
-  await notifyReservedCandidatesForCity({
-    city,
-    position: params.position,
-    branch: params.branch,
-  });
 }
 
 export async function createMassProject(params: {
@@ -1125,6 +1156,7 @@ export async function syncErpStaffingRows(
 ): Promise<{ openedVacancies: number }> {
   const sb = getSupabase();
   let openedVacancies = 0;
+  const newlyOpened: { city: string; position: string; branch: string }[] = [];
 
   for (const row of rows) {
     const city = row.city || "Toshkent";
@@ -1156,7 +1188,7 @@ export async function syncErpStaffingRows(
         .select("id")
         .eq("branch", row.branch)
         .eq("position", row.position)
-        .eq("status", "open")
+        .in("status", ["open", "accepted"])
         .maybeSingle();
 
       if (!existingVac) {
@@ -1176,14 +1208,19 @@ export async function syncErpStaffingRows(
 
         await sb.from("ats_notifications").insert({
           id: uid("notif"),
-          title: "Yangi vakansiya ochildi (Sheets ERP)",
-          message: `${row.branch} — ${row.position}: Plan ${row.planCount}, Fakt ${row.factCount}. ${deficit} ta bo'sh o'rin ochildi!`,
+          title: "Yangi vakansiya ochildi",
+          message: `${row.branch} — ${row.position}: Shtat ${row.planCount}, Band ${row.factCount}. ${deficit} ta bo'sh o'rin ochildi!`,
           type: "warning",
         });
 
+        newlyOpened.push({ city, position: row.position, branch: row.branch });
         openedVacancies++;
       }
     }
+  }
+
+  if (newlyOpened.length > 0) {
+    await notifyReservedCandidatesGrouped(newlyOpened);
   }
 
   await logIntegration({

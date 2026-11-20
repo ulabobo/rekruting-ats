@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  acceptVacancy,
   addDocument,
   addEvaluation,
   createApplicationFromLead,
@@ -98,6 +99,16 @@ export async function POST(req: NextRequest) {
         actorId: body.actorId || "u-admin",
         actorName: body.actorName || "Rekruter",
         lang: body.lang || "uz",
+      });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "accept_vacancy") {
+      await acceptVacancy({
+        vacancyId: body.vacancyId,
+        recruiterId: body.recruiterId || "u-admin",
+        recruiterName: body.recruiterName || "Rekruter",
       });
       const db = await getFullDatabase();
       return NextResponse.json({ db });

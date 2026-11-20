@@ -430,7 +430,7 @@ export default function AtsDashboard({
 
       {/* Main Content */}
       <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-slate-200/80 bg-white/85 px-6 py-3 backdrop-blur-md">
+        <header className="relative z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/85 px-6 py-3 backdrop-blur-md">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -477,7 +477,7 @@ export default function AtsDashboard({
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 z-40 mt-2 w-80 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                <div className="absolute right-0 z-50 mt-2 w-80 rounded-3xl border border-white/70 bg-white/95 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.2)] backdrop-blur-xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-extrabold text-slate-900">
                       {lang === "ru" ? "Уведомления" : "Bildirishnomalar"}
@@ -608,8 +608,10 @@ export default function AtsDashboard({
           {activeNav.kind === "vacancies" && (
             <VacanciesPanel
               db={db}
+              currentUser={currentUser}
               lang={lang}
               onOpenCreateVacancy={() => setShowVacancyModal(true)}
+              onUpdateDb={setDb}
             />
           )}
 

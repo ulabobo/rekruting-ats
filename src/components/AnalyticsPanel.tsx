@@ -72,19 +72,23 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
     },
   ];
 
-  // Build 7-day calendar strip (3-rasmdagidek)
+  // Build 7-day calendar strip (arizalar + vakansiyalar)
   const today = new Date();
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - 3 + i);
     const dayNames = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
+    const appsCount = db.applications.filter(
+      (a) => new Date(a.appliedAt).toDateString() === d.toDateString()
+    ).length;
+    const vacsCount = db.vacancies.filter(
+      (v) => new Date(v.approvedAt).toDateString() === d.toDateString()
+    ).length;
     return {
       date: d.getDate(),
       dayName: dayNames[d.getDay()],
       isToday: i === 3,
-      count: db.applications.filter(
-        (a) => new Date(a.appliedAt).toDateString() === d.toDateString()
-      ).length,
+      count: appsCount + vacsCount,
     };
   });
 
@@ -102,10 +106,29 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         {tracks.map((tr, idx) => {
           const cfg = TRACK_CONFIGS[tr];
           const trApps = db.applications.filter((a) => a.track === tr);
-          const trHired = trApps.filter((a) => a.status === "hired").length;
-          const progress = trApps.length
-            ? Math.round((trHired / trApps.length) * 100)
-            : 0;
+          const trVacs = db.vacancies.filter((v) => v.track === tr);
+          const acceptedVacs = trVacs.filter(
+            (v) => v.status === "accepted" || v.status === "closed"
+          ).length;
+
+          // Jonli progress: nomzodlarning bosqichma-bosqich siljishi yoki qabul qilingan vakansiyalar
+          let progress = 0;
+          if (trApps.length > 0) {
+            const totalPct = trApps.reduce((sum, a) => {
+              const sIdx = cfg.stages.findIndex((s) => s.id === a.currentStage);
+              const pct =
+                a.status === "hired"
+                  ? 100
+                  : sIdx >= 0
+                  ? Math.round(((sIdx + 1) / cfg.stages.length) * 100)
+                  : 15;
+              return sum + pct;
+            }, 0);
+            progress = Math.round(totalPct / trApps.length);
+          } else if (trVacs.length > 0) {
+            progress = Math.round((acceptedVacs / trVacs.length) * 100);
+          }
+
           const filledSegments = Math.max(
             progress > 0 ? 1 : 0,
             Math.round(progress / 10)
@@ -145,11 +168,17 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
 
               <div className="flex items-center justify-between pt-1">
                 <div className="flex -space-x-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/20 bg-white/20 text-[10px] font-bold">
-                    {trApps.length}
+                  <div
+                    title="Vakansiyalar"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/20 bg-white/20 text-[10px] font-bold"
+                  >
+                    {trVacs.length}
                   </div>
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/20 bg-white/15 text-[10px] font-bold">
-                    +{trHired}
+                  <div
+                    title="Nomzodlar"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/20 bg-white/15 text-[10px] font-bold"
+                  >
+                    +{trApps.length}
                   </div>
                 </div>
                 <span className="flex items-center gap-1.5 text-xs font-medium text-white/85">

@@ -50,6 +50,7 @@ type Step =
   | "totalExp"
   | "lastWork"
   | "illness"
+  | "illnessNote"
   | "consent";
 
 interface SessionState {
@@ -151,19 +152,21 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
           ],
         },
       });
-    case "marital":
+    case "marital": {
+      const isMale = st.answers.gender === "Erkak";
+      const opts = isMale
+        ? ["Uylangan", "Uylanmagan", "Ajrashgan"]
+        : ["Turmush qurgan", "Turmush qurmagan", "Ajrashgan"];
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
         text: "8/15. Oilaviy holatingiz:",
         reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "Turmush qurgan", callback_data: "ans:marital:Turmush qurgan" },
-              { text: "Turmush qurmagan", callback_data: "ans:marital:Turmush qurmagan" },
-            ],
-          ],
+          inline_keyboard: opts.map((opt) => [
+            { text: opt, callback_data: `ans:marital:${opt}` },
+          ]),
         },
       });
+    }
     case "pregnant":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
@@ -260,6 +263,11 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
           ],
         },
       });
+    case "illnessNote":
+      return sendTelegramMessage(
+        String(chatId),
+        "Iltimos, sog'lig'ingizdagi kasallik turi yoki cheklov haqida qisqacha izoh yozing:"
+      );
     case "consent": {
       const a = st.answers;
       const summary =
@@ -478,6 +486,15 @@ export async function POST(req: NextRequest) {
           prof?.expectation_uz ||
           `✨ <b>${vac.position}</b> lavozimi bo'yicha sizdan mas'uliyat, xushmuomalalik va jamoaviy ishlashni kutamiz!`;
 
+        const { data: setRow } = await sb
+          .from("ats_settings")
+          .select("data")
+          .eq("id", "default")
+          .maybeSingle();
+        const shifts: string[] = setRow?.data?.shifts?.length
+          ? setRow.data.shifts
+          : SHIFTS;
+
         await editOrSend(
           token,
           chatId,
@@ -485,7 +502,7 @@ export async function POST(req: NextRequest) {
           `${expText}\n\n🕒 Qulay smenani tanlang:`,
           {
             inline_keyboard: [
-              ...SHIFTS.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
+              ...shifts.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
               [{ text: "⬅️ Orqaga", callback_data: `branch:${st.branch || vac.branch}` }],
             ],
           }
@@ -542,7 +559,9 @@ export async function POST(req: NextRequest) {
         else if (field === "uzLang") st.step = "ruLang";
         else if (field === "ruLang") st.step = "totalExp";
         else if (field === "totalExp") st.step = "lastWork";
-        else if (field === "illness") st.step = "consent";
+        else if (field === "illness") {
+          st.step = val === "Ha" ? "illnessNote" : "consent";
+        }
 
         sessions.set(chatId, st);
         await askNextQuestion(token, chatId, st);
@@ -725,6 +744,9 @@ export async function POST(req: NextRequest) {
     } else if (st.step === "lastWork") {
       st.answers.lastWork = text;
       st.step = "illness";
+    } else if (st.step === "illnessNote") {
+      st.answers.illness = `Ha: ${text}`;
+      st.step = "consent";
     }
 
     sessions.set(chatId, st);

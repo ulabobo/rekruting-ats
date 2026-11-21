@@ -656,6 +656,36 @@ export default function AdminSettingsPanel({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
               />
             </div>
+            <div className="col-span-2">
+              <label className="mb-1 block font-semibold">
+                {lang === "ru"
+                  ? "Смены в Telegram-боте (через запятую)"
+                  : "Telegram botdagi smenalar (vergul bilan ajratib yozing)"}
+              </label>
+              <input
+                value={(
+                  db.settings.shifts || [
+                    "1-smena (09:00–18:00)",
+                    "2-smena (14:00–23:00)",
+                    "2/2 smena",
+                    "To'liq kun (5/2)",
+                  ]
+                ).join(", ")}
+                onChange={(e) =>
+                  onUpdateDb({
+                    ...db,
+                    settings: {
+                      ...db.settings,
+                      shifts: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    },
+                  })
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+            </div>
           </div>
           <button
             onClick={async () => {

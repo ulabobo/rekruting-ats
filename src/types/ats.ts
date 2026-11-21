@@ -227,6 +227,7 @@ export interface SystemSettings {
   officeEmployeeSlaDays: number;
   offerTimerStoreDays: number;
   offerTimerOfficeDays: number;
+  shifts?: string[];
   googleSpreadsheetId?: string;
   googleSpreadsheetUrl?: string;
   googleLastSyncAt?: string;

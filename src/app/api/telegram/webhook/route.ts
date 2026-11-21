@@ -949,6 +949,14 @@ export async function POST(req: NextRequest) {
     } else if (st.step === "phone" || msg.contact) {
       st.answers.phone = normalizePhone(msg.contact?.phone_number || text);
       st.step = "gender";
+      await tgCall(token, "sendMessage", {
+        chat_id: chatId,
+        text: "✅ Telefon raqam qabul qilindi.",
+        reply_markup: {
+          keyboard: [[{ text: "📋 Bo'sh ish o'rinlari" }, { text: "📄 Ariza holati" }]],
+          resize_keyboard: true,
+        },
+      });
     } else if (st.step === "lastWork") {
       st.answers.lastWork = text;
       st.step = "illness";

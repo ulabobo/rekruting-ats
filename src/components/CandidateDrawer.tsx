@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import {
   AlertTriangle,
+  ArrowRightLeft,
+  Ban,
+  Bookmark,
   CheckCircle2,
   GraduationCap,
   Info,
@@ -72,6 +75,7 @@ export default function CandidateDrawer({
   );
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedVacancyId, setSelectedVacancyId] = useState(application.vacancyId);
 
   const showToast = (type: "ok" | "err", text: string) => {
     setToast({ type, text });
@@ -215,29 +219,149 @@ export default function CandidateDrawer({
     }
   };
 
+  const handleSetStatus = async (status: "reserved" | "blacklist") => {
+    let reason = "";
+    if (status === "blacklist") {
+      const input = window.prompt(
+        lang === "ru"
+          ? "Причина внесения в черный список:"
+          : "Qora ro'yxatga kiritish sababini yozing:",
+        ""
+      );
+      if (input === null) return;
+      reason = input.trim();
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/ats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_application_status",
+          applicationId: application.id,
+          status,
+          reason,
+          actorId: currentUser.id,
+          actorName: currentUser.fullName,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.db) {
+        onUpdateDb(data.db);
+        showToast(
+          "ok",
+          status === "blacklist"
+            ? lang === "ru"
+              ? "Добавлен в черный список"
+              : "Qora ro'yxatga qo'shildi"
+            : lang === "ru"
+            ? "Переведено в резерв"
+            : "Zaxiraga olindi"
+        );
+      } else {
+        showToast("err", data.error || "Xatolik");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleChangeVacancy = async () => {
+    if (!selectedVacancyId || selectedVacancyId === application.vacancyId) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/ats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "change_vacancy",
+          applicationId: application.id,
+          newVacancyId: selectedVacancyId,
+          actorId: currentUser.id,
+          actorName: currentUser.fullName,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.db) {
+        onUpdateDb(data.db);
+        showToast(
+          "ok",
+          lang === "ru" ? "Вакансия изменена" : "Vakansiya muvaffaqiyatli o'zgartirildi"
+        );
+      } else {
+        showToast("err", data.error || "Xatolik");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const currentIdx = trackConfig.stages.findIndex((s) => s.id === application.currentStage);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[2px]">
       <div className="flex h-full w-full max-w-4xl flex-col bg-[#f6f5f1] shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                {getTrackTitle(application.track, lang)}
-              </span>
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                {application.matchScore}% {t.matchLabel}
-              </span>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {candidate.avatarUrl ? (
+              <img
+                src={candidate.avatarUrl}
+                alt={candidate.fullName}
+                className="h-12 w-12 shrink-0 rounded-2xl border border-slate-200 object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-600">
+                {candidate.fullName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-lg bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                  {getTrackTitle(application.track, lang)}
+                </span>
+                <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                  {application.matchScore}% {t.matchLabel}
+                </span>
+                {application.status === "reserved" && (
+                  <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                    {t.statusReserved}
+                  </span>
+                )}
+                {application.status === "blacklist" && (
+                  <span className="rounded-lg bg-slate-900 px-2.5 py-0.5 text-xs font-bold text-white">
+                    {t.statusBlacklist}
+                  </span>
+                )}
+              </div>
+              <h2 className="mt-1 truncate text-lg font-bold text-slate-900">
+                {candidate.fullName}
+              </h2>
             </div>
-            <h2 className="mt-1 truncate text-lg font-bold text-slate-900">
-              {candidate.fullName}
-            </h2>
           </div>
 
-          <div className="flex items-center gap-2">
-            {application.status !== "rejected" && application.status !== "hired" && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {application.status !== "reserved" && application.status !== "hired" && application.status !== "blacklist" && (
+              <button
+                onClick={() => handleSetStatus("reserved")}
+                disabled={busy}
+                className="flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                {lang === "ru" ? "В резерв" : "Zaxiraga olish"}
+              </button>
+            )}
+            {currentUser.role === "admin" && application.status !== "blacklist" && (
+              <button
+                onClick={() => handleSetStatus("blacklist")}
+                disabled={busy}
+                className="flex items-center gap-1 rounded-xl border border-slate-300 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                {lang === "ru" ? "Черный список" : "Qora ro'yxat"}
+              </button>
+            )}
+            {application.status !== "rejected" && application.status !== "hired" && application.status !== "blacklist" && (
               <button
                 onClick={handleReject}
                 disabled={busy}
@@ -331,9 +455,36 @@ export default function CandidateDrawer({
                     </p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-slate-400">{t.vacancyLabel}</p>
-                  <p className="font-semibold text-slate-900">{vacancy.position}</p>
+                <div className="col-span-2 rounded-xl border border-slate-100 bg-slate-50/70 p-2.5">
+                  <p className="mb-1 text-[10px] font-semibold text-slate-500">
+                    {lang === "ru" ? "Вакансия / Сменить позицию" : "Vakansiya / Lavozimni o'zgartirish"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedVacancyId}
+                      onChange={(e) => setSelectedVacancyId(e.target.value)}
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
+                    >
+                      {db.vacancies
+                        .filter((v) => v.status === "open" || v.id === application.vacancyId)
+                        .map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.position} — {v.branch}
+                          </option>
+                        ))}
+                    </select>
+                    {selectedVacancyId !== application.vacancyId && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={handleChangeVacancy}
+                        className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        {lang === "ru" ? "Изменить" : "O'zgartirish"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400">{t.branchLabel}</p>

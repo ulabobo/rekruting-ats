@@ -23,14 +23,18 @@ export type ApplicationStatus =
   | "offered"
   | "hired"
   | "rejected"
-  | "reserved";
+  | "reserved"
+  | "blacklist";
 
 export interface User {
   id: string;
   login: string;
+  password?: string;
+  email?: string;
   fullName: string;
   role: UserRoleType;
   allowedTracks: TrackType[];
+  assignedBranches?: string[];
   position: string;
   createdAt?: string;
 }
@@ -91,6 +95,7 @@ export interface Candidate {
   internalCategory?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  avatarUrl?: string;
   tags: string[];
   questionnaireData?: Record<string, string>;
   createdAt: string;

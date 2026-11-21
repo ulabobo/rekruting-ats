@@ -121,7 +121,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     notifRes,
     setRes,
   ] = await Promise.all([
-    sb.from("ats_users").select("id, login, full_name, role, allowed_tracks, position, created_at").order("created_at", { ascending: true }),
+    sb.from("ats_users").select("id, login, password_hash, email, full_name, role, allowed_tracks, assigned_branches, position, created_at").order("created_at", { ascending: true }),
     sb.from("ats_mass_projects").select("*").order("created_at", { ascending: false }),
     sb.from("ats_vacancies").select("*").order("approved_at", { ascending: false }),
     sb.from("ats_candidates").select("*").order("created_at", { ascending: false }),
@@ -141,9 +141,12 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     users: (usersRes.data || []).map((u) => ({
       id: u.id,
       login: u.login,
+      password: u.password_hash,
+      email: u.email,
       fullName: u.full_name,
       role: u.role,
       allowedTracks: u.allowed_tracks || [],
+      assignedBranches: u.assigned_branches || [],
       position: u.position,
       createdAt: u.created_at,
     })),
@@ -194,6 +197,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       internalCategory: c.internal_category,
       telegramChatId: c.telegram_chat_id,
       telegramUsername: c.telegram_username,
+      avatarUrl: c.avatar_url,
       tags: c.tags || [],
       questionnaireData: c.questionnaire_data || {},
       createdAt: c.created_at,
@@ -396,6 +400,7 @@ export async function createApplicationFromLead(input: {
   lastWorkplace?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  avatarUrl?: string;
   questionnaireData?: Record<string, string>;
 }): Promise<{ isDuplicate: boolean; applicationId: string }> {
   const sb = getSupabase();
@@ -435,6 +440,7 @@ export async function createApplicationFromLead(input: {
       is_internal: input.source === "Ichki nomzod",
       telegram_chat_id: input.telegramChatId || null,
       telegram_username: input.telegramUsername || null,
+      avatar_url: input.avatarUrl || null,
       tags: [input.source],
       questionnaire_data: input.questionnaireData || {},
     });
@@ -449,6 +455,7 @@ export async function createApplicationFromLead(input: {
       .update({
         telegram_chat_id: input.telegramChatId || existingCand.telegram_chat_id,
         telegram_username: input.telegramUsername || existingCand.telegram_username,
+        avatar_url: input.avatarUrl || existingCand.avatar_url,
         questionnaire_data: input.questionnaireData || existingCand.questionnaire_data || {},
       })
       .eq("id", candidateId);
@@ -908,6 +915,7 @@ export async function createReserveCandidate(input: {
   lastWorkplace?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  avatarUrl?: string;
   questionnaireData?: Record<string, string>;
 }) {
   const sb = getSupabase();
@@ -933,6 +941,7 @@ export async function createReserveCandidate(input: {
         experience_years: input.experienceYears || null,
         telegram_chat_id: input.telegramChatId || null,
         telegram_username: input.telegramUsername || null,
+        avatar_url: input.avatarUrl || null,
         tags: [input.city],
         questionnaire_data: input.questionnaireData || {},
       })
@@ -954,6 +963,7 @@ export async function createReserveCandidate(input: {
       is_internal: false,
       telegram_chat_id: input.telegramChatId || null,
       telegram_username: input.telegramUsername || null,
+      avatar_url: input.avatarUrl || null,
       tags: [input.city],
       questionnaire_data: input.questionnaireData || {},
     });
@@ -1127,22 +1137,135 @@ export async function saveMessageTemplate(params: {
 export async function createRecruiterUser(params: {
   login: string;
   password: string;
+  email?: string;
   fullName: string;
   position: string;
   role: "admin" | "recruiter";
   allowedTracks: TrackType[];
+  assignedBranches?: string[];
 }) {
   const sb = getSupabase();
   const { error } = await sb.from("ats_users").insert({
     id: uid("u"),
     login: params.login.trim(),
     password_hash: params.password,
+    email: params.email?.trim() || null,
     full_name: params.fullName,
     position: params.position,
     role: params.role,
     allowed_tracks: params.allowedTracks,
+    assigned_branches: params.assignedBranches || [],
   });
   if (error) throw new Error(error.message);
+}
+
+export async function updateRecruiterUser(params: {
+  id: string;
+  login: string;
+  password?: string;
+  email?: string;
+  fullName: string;
+  position: string;
+  role: "admin" | "recruiter";
+  allowedTracks: TrackType[];
+  assignedBranches?: string[];
+}) {
+  const sb = getSupabase();
+  const payload: Record<string, unknown> = {
+    login: params.login.trim(),
+    email: params.email?.trim() || null,
+    full_name: params.fullName,
+    position: params.position,
+    role: params.role,
+    allowed_tracks: params.allowedTracks,
+    assigned_branches: params.assignedBranches || [],
+  };
+  if (params.password && params.password.trim()) {
+    payload.password_hash = params.password.trim();
+  }
+  const { error } = await sb.from("ats_users").update(payload).eq("id", params.id);
+  if (error) throw new Error(error.message);
+}
+
+export async function setApplicationStatus(params: {
+  applicationId: string;
+  status: "active" | "reserved" | "blacklist" | "rejected";
+  reason?: string;
+  actorId: string;
+  actorName: string;
+}) {
+  const sb = getSupabase();
+  const { data: app } = await sb
+    .from("ats_applications")
+    .select("status")
+    .eq("id", params.applicationId)
+    .maybeSingle();
+
+  await sb
+    .from("ats_applications")
+    .update({
+      status: params.status,
+      rejection_reason: params.reason || null,
+    })
+    .eq("id", params.applicationId);
+
+  const label =
+    params.status === "blacklist"
+      ? "Qora ro'yxatga kiritildi"
+      : params.status === "reserved"
+      ? "Zaxiraga (Rezerv) olindi"
+      : params.status;
+
+  await logAudit({
+    entityType: "application",
+    entityId: params.applicationId,
+    actorId: params.actorId,
+    actorName: params.actorName,
+    action: params.reason ? `${label}: ${params.reason}` : label,
+    oldValue: app?.status || "",
+    newValue: params.status,
+  });
+}
+
+export async function changeApplicationVacancy(params: {
+  applicationId: string;
+  newVacancyId: string;
+  actorId: string;
+  actorName: string;
+}) {
+  const sb = getSupabase();
+  const { data: newVac } = await sb
+    .from("ats_vacancies")
+    .select("*")
+    .eq("id", params.newVacancyId)
+    .maybeSingle();
+  if (!newVac) throw new Error("Yangi vakansiya topilmadi");
+
+  const { data: app } = await sb
+    .from("ats_applications")
+    .select("vacancy_id")
+    .eq("id", params.applicationId)
+    .maybeSingle();
+
+  const { data: oldVac } = app?.vacancy_id
+    ? await sb.from("ats_vacancies").select("position, branch").eq("id", app.vacancy_id).maybeSingle()
+    : { data: null };
+
+  await sb
+    .from("ats_applications")
+    .update({
+      vacancy_id: newVac.id,
+      track: newVac.track,
+    })
+    .eq("id", params.applicationId);
+
+  await logAudit({
+    entityType: "application",
+    entityId: params.applicationId,
+    actorId: params.actorId,
+    actorName: params.actorName,
+    action: `Lavozim o'zgartirildi: ${oldVac?.position || "?"} (${oldVac?.branch || ""}) → ${newVac.position} (${newVac.branch})`,
+  });
 }
 
 export async function deleteRecruiterUser(userId: string) {

@@ -35,8 +35,10 @@ export default function AllCandidatesPanel({
             { id: "all", label: t.statusAll },
             { id: "active", label: t.statusActive },
             { id: "offered", label: t.statusOffered },
+            { id: "reserved", label: t.statusReserved },
             { id: "hired", label: t.statusHired },
             { id: "rejected", label: t.statusRejected },
+            { id: "blacklist", label: t.statusBlacklist },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -92,7 +94,15 @@ export default function AllCandidatesPanel({
                       </span>
                     </td>
                     <td className="py-3">
-                      {app.status === "rejected" ? (
+                      {app.status === "blacklist" ? (
+                        <span className="rounded-md bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                          {t.statusBlacklist}: {app.rejectionReason || "—"}
+                        </span>
+                      ) : app.status === "reserved" ? (
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          {t.statusReserved}
+                        </span>
+                      ) : app.status === "rejected" ? (
                         <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
                           {t.statusRejected}: {app.rejectionReason || "—"}
                         </span>

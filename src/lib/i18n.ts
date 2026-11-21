@@ -66,6 +66,8 @@ export const UI_TEXT: Record<
     statusOffered: string;
     statusHired: string;
     statusRejected: string;
+    statusReserved: string;
+    statusBlacklist: string;
   }
 > = {
   uz: {
@@ -132,6 +134,8 @@ export const UI_TEXT: Record<
     statusOffered: "Taklif berilgan",
     statusHired: "Ishga olingan",
     statusRejected: "Rad etilgan",
+    statusReserved: "Zaxirada",
+    statusBlacklist: "Qora ro'yxat",
   },
   ru: {
     appName: "Rekruting ATS",
@@ -197,5 +201,7 @@ export const UI_TEXT: Record<
     statusOffered: "Оффер отправлен",
     statusHired: "Принят",
     statusRejected: "Отклонен",
+    statusReserved: "В резерве",
+    statusBlacklist: "Черный список",
   },
 };

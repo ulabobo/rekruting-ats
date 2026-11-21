@@ -3,6 +3,7 @@ import {
   acceptVacancy,
   addDocument,
   addEvaluation,
+  changeApplicationVacancy,
   createApplicationFromLead,
   createMassProject,
   createRecruiterUser,
@@ -15,8 +16,10 @@ import {
   rejectApplication,
   saveMessageTemplate,
   savePositionProfile,
+  setApplicationStatus,
   syncErpStaffingRows,
   transferToLms,
+  updateRecruiterUser,
 } from "@/lib/supabase-db";
 import { isGoogleConfigured } from "@/lib/google-sheets";
 
@@ -193,10 +196,51 @@ export async function POST(req: NextRequest) {
       await createRecruiterUser({
         login: body.login,
         password: body.password,
+        email: body.email,
         fullName: body.fullName,
         position: body.position || "Rekruter",
         role: body.role || "recruiter",
         allowedTracks: body.allowedTracks || ["dokon_xodimi"],
+        assignedBranches: body.assignedBranches || [],
+      });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "update_user") {
+      await updateRecruiterUser({
+        id: body.id,
+        login: body.login,
+        password: body.password,
+        email: body.email,
+        fullName: body.fullName,
+        position: body.position || "Rekruter",
+        role: body.role || "recruiter",
+        allowedTracks: body.allowedTracks || ["dokon_xodimi"],
+        assignedBranches: body.assignedBranches || [],
+      });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "set_application_status") {
+      await setApplicationStatus({
+        applicationId: body.applicationId,
+        status: body.status,
+        reason: body.reason,
+        actorId: body.actorId || "u-admin",
+        actorName: body.actorName || "Admin",
+      });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "change_vacancy") {
+      await changeApplicationVacancy({
+        applicationId: body.applicationId,
+        newVacancyId: body.newVacancyId,
+        actorId: body.actorId || "u-admin",
+        actorName: body.actorName || "Rekruter",
       });
       const db = await getFullDatabase();
       return NextResponse.json({ db });

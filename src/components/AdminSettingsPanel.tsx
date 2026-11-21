@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bot, ClipboardList, Plus, Shield, Trash2, Users } from "lucide-react";
-import { AtsDatabase, Language, TrackType } from "@/types/ats";
+import { Bot, ClipboardList, Plus, Shield, Trash2, Users, X } from "lucide-react";
+import { AtsDatabase, Language, TrackType, User } from "@/types/ats";
 import { TRACK_CONFIGS, getTrackTitle } from "@/lib/stages";
 
 export default function AdminSettingsPanel({
@@ -47,11 +47,27 @@ export default function AdminSettingsPanel({
   const [uLogin, setULogin] = useState("");
   const [uPass, setUPass] = useState("");
   const [uName, setUName] = useState("");
+  const [uEmail, setUEmail] = useState("");
   const [uPos, setUPos] = useState("Rekruter");
+  const [uRole, setURole] = useState<"admin" | "recruiter">("recruiter");
   const [uTracks, setUTracks] = useState<TrackType[]>([
     "dokon_xodimi",
     "ommaviy_yollash",
   ]);
+  const [uBranches, setUBranches] = useState<string[]>([]);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  const allBranches = Array.from(
+    new Set([
+      "Aura-1",
+      "Aura-2",
+      "Aura-3",
+      "Aura-4",
+      "Bosh ofis",
+      "Toshkent ombor",
+      ...db.vacancies.map((v) => v.branch).filter(Boolean),
+    ])
+  );
 
   const handleSelectTrackStage = (tr: TrackType, st: string) => {
     setTplTrack(tr);
@@ -100,9 +116,11 @@ export default function AdminSettingsPanel({
         login: uLogin,
         password: uPass,
         fullName: uName,
+        email: uEmail,
         position: uPos,
-        role: "recruiter",
+        role: uRole,
         allowedTracks: uTracks,
+        assignedBranches: uBranches,
       }),
     });
     const data = await res.json();
@@ -113,7 +131,39 @@ export default function AdminSettingsPanel({
       setULogin("");
       setUPass("");
       setUName("");
+      setUEmail("");
+      setUBranches([]);
       setMsg(lang === "ru" ? "Рекрутер добавлен!" : "Yangi rekruter qo'shildi!");
+      setTimeout(() => setMsg(null), 3000);
+    }
+  };
+
+  const handleSaveUserProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    const res = await fetch("/api/ats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_user",
+        userId: editingUser.id,
+        fullName: editingUser.fullName,
+        login: editingUser.login,
+        password: editingUser.password,
+        email: editingUser.email || "",
+        position: editingUser.position,
+        role: editingUser.role,
+        allowedTracks: editingUser.allowedTracks,
+        assignedBranches: editingUser.assignedBranches || [],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMsg(data.error || "Xatolik");
+    } else {
+      onUpdateDb(data.db);
+      setEditingUser(null);
+      setMsg(lang === "ru" ? "Профиль обновлен!" : "Profil yangilandi!");
       setTimeout(() => setMsg(null), 3000);
     }
   };
@@ -537,10 +587,27 @@ export default function AdminSettingsPanel({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={uPos}
+                onChange={(e) => setUPos(e.target.value)}
+                placeholder={lang === "ru" ? "Должность" : "Lavozim"}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+              <select
+                value={uRole}
+                onChange={(e) => setURole(e.target.value as "admin" | "recruiter")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+              >
+                <option value="recruiter">Rekruter</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
             <input
-              value={uPos}
-              onChange={(e) => setUPos(e.target.value)}
-              placeholder={lang === "ru" ? "Должность" : "Lavozim"}
+              type="email"
+              value={uEmail}
+              onChange={(e) => setUEmail(e.target.value)}
+              placeholder="Email (ixtiyoriy)"
               className="w-full rounded-xl border border-slate-200 px-3 py-2"
             />
 
@@ -565,6 +632,27 @@ export default function AdminSettingsPanel({
               </div>
             </div>
 
+            <div>
+              <p className="mb-1.5 font-semibold text-slate-700">
+                {lang === "ru" ? "Привязанные филиалы (пусто = все):" : "Biriktirilgan filiallar (bo'sh = barchasi):"}
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {allBranches.map((br) => (
+                  <label key={br} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={uBranches.includes(br)}
+                      onChange={(e) => {
+                        if (e.target.checked) setUBranches((p) => [...p, br]);
+                        else setUBranches((p) => p.filter((x) => x !== br));
+                      }}
+                    />
+                    <span className="truncate">{br}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <button
               type="submit"
               className="w-full rounded-xl bg-blue-600 py-2.5 font-bold text-white hover:bg-blue-700"
@@ -575,12 +663,13 @@ export default function AdminSettingsPanel({
 
           <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs lg:col-span-7">
             <h3 className="text-sm font-bold text-slate-900">
-              {lang === "ru" ? "Список пользователей" : "Tizim foydalanuvchilari"}
+              {lang === "ru" ? "Список пользователей (нажмите для профиля)" : "Tizim foydalanuvchilari (profil uchun bosing)"}
             </h3>
             {db.users.map((u) => (
               <div
                 key={u.id}
-                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs"
+                onClick={() => setEditingUser({ ...u, assignedBranches: u.assignedBranches || [] })}
+                className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs transition hover:border-blue-200 hover:bg-blue-50/40"
               >
                 <div>
                   <p className="font-bold text-slate-900">
@@ -588,15 +677,21 @@ export default function AdminSettingsPanel({
                     <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700">
                       {u.login}
                     </span>
+                    <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-700">
+                      {u.role}
+                    </span>
                   </p>
-                  <p className="text-[11px] text-slate-500">
-                    {u.position} •{" "}
-                    {u.allowedTracks.map((tr) => getTrackTitle(tr, lang)).join(", ")}
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {u.position} • Parol: <span className="font-mono font-semibold text-slate-700">{u.password || "—"}</span>
+                    {u.assignedBranches && u.assignedBranches.length > 0
+                      ? ` • Filiallar: ${u.assignedBranches.join(", ")}`
+                      : " • Barcha filiallar"}
                   </p>
                 </div>
                 {u.id !== "u-admin" && (
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       const res = await fetch("/api/ats", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -613,6 +708,156 @@ export default function AdminSettingsPanel({
               </div>
             ))}
           </div>
+
+          {editingUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+              <form
+                onSubmit={handleSaveUserProfile}
+                className="w-full max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {editingUser.fullName}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      {lang === "ru" ? "Профиль пользователя и доступы" : "Foydalanuvchi profili va ruxsatlari"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">F.I.O</label>
+                    <input
+                      required
+                      value={editingUser.fullName}
+                      onChange={(e) => setEditingUser({ ...editingUser, fullName: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Lavozim</label>
+                    <input
+                      value={editingUser.position}
+                      onChange={(e) => setEditingUser({ ...editingUser, position: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Login</label>
+                    <input
+                      required
+                      value={editingUser.login}
+                      onChange={(e) => setEditingUser({ ...editingUser, login: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Parol</label>
+                    <input
+                      required
+                      value={editingUser.password || ""}
+                      onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Email</label>
+                    <input
+                      type="email"
+                      value={editingUser.email || ""}
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Rol</label>
+                    <select
+                      value={editingUser.role}
+                      onChange={(e) =>
+                        setEditingUser({ ...editingUser, role: e.target.value as "admin" | "recruiter" })
+                      }
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    >
+                      <option value="recruiter">Rekruter</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 font-semibold text-slate-700">
+                    {lang === "ru" ? "Доступные разделы:" : "Ochiladigan bo'limlar:"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(Object.keys(TRACK_CONFIGS) as TrackType[]).map((tr) => (
+                      <label key={tr} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editingUser.allowedTracks.includes(tr)}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...editingUser.allowedTracks, tr]
+                              : editingUser.allowedTracks.filter((x) => x !== tr);
+                            setEditingUser({ ...editingUser, allowedTracks: next });
+                          }}
+                        />
+                        <span>{getTrackTitle(tr, lang)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 font-semibold text-slate-700">
+                    {lang === "ru" ? "Привязанные филиалы (пусто = все):" : "Biriktirilgan filiallar (bo'sh = barchasi):"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {allBranches.map((br) => (
+                      <label key={br} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={(editingUser.assignedBranches || []).includes(br)}
+                          onChange={(e) => {
+                            const curr = editingUser.assignedBranches || [];
+                            const next = e.target.checked
+                              ? [...curr, br]
+                              : curr.filter((x) => x !== br);
+                            setEditingUser({ ...editingUser, assignedBranches: next });
+                          }}
+                        />
+                        <span className="truncate">{br}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    {lang === "ru" ? "Отмена" : "Bekor qilish"}
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-blue-600 px-5 py-2 font-bold text-white hover:bg-blue-700"
+                  >
+                    {lang === "ru" ? "Сохранить" : "Saqlash"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

@@ -10,26 +10,6 @@ import { sendTelegramMessage } from "@/lib/telegram";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { TrackType } from "@/types/ats";
 
-const REGIONS = [
-  "Bosh ofis",
-  "Toshkent ombor",
-  "Toshkent shahri",
-  "Toshkent viloyati",
-  "Samarqand viloyati",
-  "Buxoro viloyati",
-  "Farg'ona vodiysi",
-];
-
-const CITIES_BY_REGION: Record<string, string[]> = {
-  "Bosh ofis": ["Toshkent"],
-  "Toshkent ombor": ["Toshkent"],
-  "Toshkent shahri": ["Toshkent"],
-  "Toshkent viloyati": ["Chirchiq", "Olmaliq", "Angren"],
-  "Samarqand viloyati": ["Samarqand"],
-  "Buxoro viloyati": ["Buxoro"],
-  "Farg'ona vodiysi": ["Andijon", "Farg'ona", "Namangan"],
-};
-
 const SHIFTS = ["1-smena (09:00–18:00)", "2-smena (14:00–23:00)", "2/2 smena", "To'liq kun (5/2)"];
 
 type Step =
@@ -51,6 +31,7 @@ type Step =
   | "lastWork"
   | "illness"
   | "illnessNote"
+  | "photo"
   | "consent";
 
 interface SessionState {
@@ -62,10 +43,74 @@ interface SessionState {
   vacancyId?: string;
   position?: string;
   shift?: string;
+  avatarUrl?: string;
   answers: Record<string, string>;
 }
 
-const sessions = new Map<number, SessionState>();
+const STEP_ORDER: Step[] = [
+  "hasExp",
+  "firstName",
+  "lastName",
+  "birthDate",
+  "address",
+  "phone",
+  "gender",
+  "marital",
+  "student",
+  "education",
+  "uzLang",
+  "ruLang",
+  "totalExp",
+  "lastWork",
+  "illness",
+  "photo",
+  "consent",
+];
+
+function getProgressHeader(step: Step): string {
+  const idx = STEP_ORDER.indexOf(step);
+  if (idx === -1) return "";
+  const pct = Math.min(5, Math.max(1, Math.ceil(((idx + 1) / STEP_ORDER.length) * 5)));
+  const bar = "🟩".repeat(pct) + "⬜".repeat(5 - pct);
+  const section =
+    idx <= 1
+      ? "Tajriba"
+      : idx <= 8
+      ? "Shaxsiy ma'lumotlar"
+      : idx <= 13
+      ? "Ta'lim va tillar"
+      : idx <= 14
+      ? "Sog'liq"
+      : "Foto va Tasdiqlash";
+  return `${bar} <i>${section}</i>\n\n`;
+}
+
+async function getSession(chatId: number): Promise<SessionState | null> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from("ats_bot_sessions")
+    .select("state")
+    .eq("chat_id", String(chatId))
+    .maybeSingle();
+  return (data?.state as SessionState) || null;
+}
+
+async function saveSession(chatId: number, state: SessionState) {
+  const sb = getSupabase();
+  await sb.from("ats_bot_sessions").upsert(
+    {
+      chat_id: String(chatId),
+      state,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "chat_id" }
+  );
+}
+
+async function clearSession(chatId: number) {
+  const sb = getSupabase();
+  await sb.from("ats_bot_sessions").delete().eq("chat_id", String(chatId));
+}
 
 async function tgCall(token: string, method: string, body: Record<string, unknown>) {
   await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -101,38 +146,41 @@ async function editOrSend(
 }
 
 async function askNextQuestion(token: string, chatId: number, st: SessionState) {
+  const hdr = getProgressHeader(st.step);
   switch (st.step) {
     case "hasExp":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "1/15. Tanlangan lavozim bo'yicha tajribangiz bormi?",
+        text: `${hdr}Tanlangan lavozim bo'yicha avval ishlaganmisiz?`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Ha", callback_data: "ans:hasExp:Ha" },
+              { text: "✅ Ha, tajribam bor", callback_data: "ans:hasExp:Ha" },
               { text: "❌ Yo'q", callback_data: "ans:hasExp:Yo'q" },
             ],
           ],
         },
       });
     case "firstName":
-      return sendTelegramMessage(String(chatId), "2/15. Ismingizni kiriting:");
+      return sendTelegramMessage(String(chatId), `${hdr}Ismingizni kiriting:`);
     case "lastName":
-      return sendTelegramMessage(String(chatId), "3/15. Familiyangizni kiriting:");
+      return sendTelegramMessage(String(chatId), `${hdr}Familiyangizni kiriting:`);
     case "birthDate":
       return sendTelegramMessage(
         String(chatId),
-        "4/15. Tug'ilgan sanangizni kiriting (masalan: 10.08.2002):"
+        `${hdr}Tug'ilgan sanangizni kiriting (masalan: 10.08.2002):`
       );
     case "address":
       return sendTelegramMessage(
         String(chatId),
-        "5/15. Yashash manzilingizni kiriting (tuman, ko'cha, uy):"
+        `${hdr}Yashash manzilingizni kiriting (tuman, ko'cha, uy):`
       );
     case "phone":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "6/15. Telefon raqamingizni yuboring (+998901234567):",
+        text: `${hdr}Telefon raqamingizni yuboring (+998901234567):`,
+        parse_mode: "HTML",
         reply_markup: {
           keyboard: [[{ text: "📱 Telefon raqamni yuborish", request_contact: true }]],
           resize_keyboard: true,
@@ -142,7 +190,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "gender":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "7/15. Jinsingizni tanlang:",
+        text: `${hdr}Jinsingizni tanlang:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
@@ -159,7 +208,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
         : ["Turmush qurgan", "Turmush qurmagan", "Ajrashgan"];
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "8/15. Oilaviy holatingiz:",
+        text: `${hdr}Oilaviy holatingiz:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: opts.map((opt) => [
             { text: opt, callback_data: `ans:marital:${opt}` },
@@ -170,7 +220,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "pregnant":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "9/15. Homiladormisiz?",
+        text: `${hdr}Homiladormisiz?`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
@@ -183,7 +234,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "student":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "10/15. Talabamisiz?",
+        text: `${hdr}Hozirda talabamisiz?`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
@@ -196,7 +248,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "education":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "11/15. Ma'lumot darajangiz:",
+        text: `${hdr}Ma'lumot darajangiz:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: "O'rta", callback_data: "ans:education:O'rta" }],
@@ -208,7 +261,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "uzLang":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "12/15. O'zbek tili darajangiz:",
+        text: `${hdr}O'zbek tili darajangiz:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: "Ilg'or (erkin gapiraman)", callback_data: "ans:uzLang:Ilg'or" }],
@@ -220,7 +274,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "ruLang":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "13/15. Rus tili darajangiz:",
+        text: `${hdr}Rus tili darajangiz:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: "Ilg'or (erkin gapiraman)", callback_data: "ans:ruLang:Ilg'or" }],
@@ -232,7 +287,8 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "totalExp":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "14/15. Umumiy ish tajribangiz:",
+        text: `${hdr}Umumiy ish tajribangiz:`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
@@ -250,12 +306,13 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "lastWork":
       return sendTelegramMessage(
         String(chatId),
-        "15/15. Oxirgi ish joyingiz va nima sababdan ketganingizni yozing (agar ishlamagan bo'lsangiz «Yo'q» deb yozing):"
+        `${hdr}Oxirgi ish joyingiz va nima sababdan ketganingizni yozing (agar ishlamagan bo'lsangiz «Yo'q» deb yozing):`
       );
     case "illness":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: "Sog'lig'ingiz bo'yicha og'ir kasallik turi yoki ishga cheklovlar bormi?",
+        text: `${hdr}Sog'lig'ingiz bo'yicha og'ir kasallik turi yoki ishga cheklovlar bormi?`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: "❌ Yo'q, sog'lomman", callback_data: "ans:illness:Yo'q" }],
@@ -266,29 +323,44 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "illnessNote":
       return sendTelegramMessage(
         String(chatId),
-        "Iltimos, sog'lig'ingizdagi kasallik turi yoki cheklov haqida qisqacha izoh yozing:"
+        `${hdr}Iltimos, sog'lig'ingizdagi kasallik turi yoki cheklov haqida qisqacha izoh yozing:`
+      );
+    case "photo":
+      return sendTelegramMessage(
+        String(chatId),
+        `${hdr}📸 Iltimos, o'zingizning aniq yuz rasmingizni (selfi yoki 3x4 rasm) yuboring:`
       );
     case "consent": {
       const a = st.answers;
       const summary =
-        `📋 <b>Arizangizni tekshiring:</b>\n\n` +
-        `📍 <b>Hudud:</b> ${a.region || "—"} / ${a.city || "—"}\n` +
+        `📋 <b>To'liq anketangizni tekshiring:</b>\n\n` +
+        `📍 <b>Hudud:</b> ${a.region || "—"}\n` +
         `🏢 <b>Filial:</b> ${a.branch || "—"}\n` +
         `💼 <b>Lavozim:</b> ${a.position || "—"}\n` +
         `🕒 <b>Smena:</b> ${a.shift || "—"}\n` +
+        `🛠 <b>Lavozimda tajriba:</b> ${a.hasExp || "—"}\n` +
         `👤 <b>F.I.O:</b> ${a.lastName || ""} ${a.firstName || ""}\n` +
+        `🎂 <b>Tug'ilgan sana:</b> ${a.birthDate || "—"}\n` +
+        `🏠 <b>Manzil:</b> ${a.address || "—"}\n` +
         `📱 <b>Telefon:</b> ${a.phone || "—"}\n` +
-        `🎓 <b>Ma'lumot:</b> ${a.education || "—"}\n` +
-        `🛠 <b>Tajriba:</b> ${a.totalExp || "—"}\n\n` +
-        `Ma'lumotlarni qayta ishlashga rozilik bildirib yuborasizmi?`;
+        `⚧ <b>Jinsi:</b> ${a.gender || "—"}\n` +
+        `💍 <b>Oilaviy holat:</b> ${a.marital || "—"}\n` +
+        (a.pregnant ? `🤰 <b>Homiladorlik:</b> ${a.pregnant}\n` : "") +
+        `🎓 <b>Talaba:</b> ${a.student || "—"} | <b>Ma'lumot:</b> ${a.education || "—"}\n` +
+        `🗣 <b>O'zbek tili:</b> ${a.uzLang || "—"} | <b>Rus tili:</b> ${a.ruLang || "—"}\n` +
+        `⏳ <b>Umumiy tajriba:</b> ${a.totalExp || "—"}\n` +
+        `🏭 <b>Oxirgi ish joyi:</b> ${a.lastWork || "—"}\n` +
+        `🏥 <b>Sog'liq / Cheklov:</b> ${a.illness || "Yo'q"}\n` +
+        `📸 <b>Foto:</b> ${st.avatarUrl ? "✅ Yuklandi" : "—"}\n\n` +
+        `Ma'lumotlarni tasdiqlab, yuborishga ruxsat berasizmi?`;
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
         text: summary,
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "✅ Tasdiqlash va yuborish", callback_data: "consent:yes" }],
-            [{ text: "🔄 Qaytadan boshlash", callback_data: "cancel" }],
+            [{ text: "✅ Hammasi to'g'ri, yuborish", callback_data: "consent:yes" }],
+            [{ text: "❌ Bekor qilish", callback_data: "cancel" }],
           ],
         },
       });
@@ -313,7 +385,7 @@ export async function POST(req: NextRequest) {
       await tgCall(token, "answerCallbackQuery", { callback_query_id: cq.id });
 
       if (data === "cancel") {
-        sessions.set(chatId, { mode: "apply", step: "idle", answers: {} });
+        await clearSession(chatId);
         await editOrSend(
           token,
           chatId,
@@ -346,28 +418,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 1. Viloyat / Hudud tanlandi -> Shu hududdagi shaharlarni dinamik olish
+      // 1. Viloyat tanlandi -> To'g'ridan-to'g'ri shu viloyatdagi Filiallar (Bosh ofis) chiqadi!
       if (data.startsWith("reg:")) {
         const region = data.replace("reg:", "");
-        const { data: regionVacs } = await sb
+        const { data: vacs } = await sb
           .from("ats_vacancies")
-          .select("city")
+          .select("*")
           .in("status", ["open", "accepted"])
           .eq("region", region);
 
-        const cities = Array.from(
-          new Set((regionVacs || []).map((v) => v.city).filter(Boolean))
-        ) as string[];
+        const branches = Array.from(new Set((vacs || []).map((v) => v.branch)));
+        const city = vacs?.[0]?.city || region;
 
-        sessions.set(chatId, { mode: "apply", step: "idle", region, answers: { region } });
+        await saveSession(chatId, {
+          mode: "apply",
+          step: "idle",
+          region,
+          city,
+          answers: { region, city },
+        });
+
         await editOrSend(
           token,
           chatId,
           msgId,
-          `📍 Hudud: <b>${region}</b>\nEndi shaharni tanlang:`,
+          `📍 Hudud: <b>${region}</b>\nFilialni (yoki Bosh ofisni) tanlang:`,
           {
             inline_keyboard: [
-              ...cities.map((c) => [{ text: `🏙 ${c}`, callback_data: `city:${c}` }]),
+              ...branches.map((b) => [{ text: `🏢 ${b}`, callback_data: `branch:${b}` }]),
               [{ text: "⬅️ Orqaga", callback_data: "back:reg" }],
             ],
           }
@@ -375,63 +453,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 2. Shahar tanlandi -> Shu hudud va shahardagi filiallarni dinamik olish
-      if (data.startsWith("city:")) {
-        const city = data.replace("city:", "");
-        const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
-        st.city = city;
-        st.answers.city = city;
-        sessions.set(chatId, st);
-
-        let query = sb
-          .from("ats_vacancies")
-          .select("*")
-          .in("status", ["open", "accepted"])
-          .ilike("city", city);
-        if (st.region) {
-          query = query.eq("region", st.region);
-        }
-        const { data: vacs } = await query;
-
-        if (vacs && vacs.length > 0) {
-          const branches = Array.from(new Set(vacs.map((v) => v.branch)));
-          await editOrSend(
-            token,
-            chatId,
-            msgId,
-            `🏙 <b>${city}</b> shahridagi filiallar (bo'sh o'rinlar bor):`,
-            {
-              inline_keyboard: [
-                ...branches.map((b) => [{ text: `🏢 ${b}`, callback_data: `branch:${b}` }]),
-                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
-              ],
-            }
-          );
-        } else {
-          await editOrSend(
-            token,
-            chatId,
-            msgId,
-            `Hozircha <b>${city}</b> shahrida bo'sh ish o'rni mavjud emas.\n\n` +
-              `Ammo yangi joy ochilishi bilan sizga xabar beramiz! Ungacha anketani to'ldirib qo'yishingiz mumkin:`,
-            {
-              inline_keyboard: [
-                [{ text: "📝 Anketani to'ldirish", callback_data: `reserve:${city}` }],
-                [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
-              ],
-            }
-          );
-        }
-        return NextResponse.json({ ok: true });
-      }
-
-      // 3. Filial tanlandi -> Shu filialdagi barcha ochiq/qabul qilingan lavozimlar
+      // 2. Filial tanlandi -> Lavozimlar
       if (data.startsWith("branch:")) {
         const branch = data.replace("branch:", "");
-        const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
+        const st = (await getSession(chatId)) || {
+          mode: "apply",
+          step: "idle",
+          answers: {},
+        };
         st.branch = branch;
         st.answers.branch = branch;
-        sessions.set(chatId, st);
+        await saveSession(chatId, st);
 
         const { data: vacs } = await sb
           .from("ats_vacancies")
@@ -452,14 +484,14 @@ export async function POST(req: NextRequest) {
                   callback_data: `vac:${v.id}`,
                 },
               ]),
-              [{ text: "⬅️ Orqaga", callback_data: `city:${st.city || ""}` }],
+              [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
             ],
           }
         );
         return NextResponse.json({ ok: true });
       }
 
-      // 4. Lavozim tanlandi -> "Sizdan kutamiz" matni + Smena tanlash
+      // 3. Lavozim tanlandi -> "Sizdan kutamiz" + Smena
       if (data.startsWith("vac:")) {
         const vacId = data.replace("vac:", "");
         const { data: vac } = await sb
@@ -469,11 +501,17 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
         if (!vac) return NextResponse.json({ ok: true });
 
-        const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
+        const st = (await getSession(chatId)) || {
+          mode: "apply",
+          step: "idle",
+          answers: {},
+        };
         st.vacancyId = vac.id;
         st.position = vac.position;
+        st.region = vac.region || st.region;
+        st.city = vac.city || st.city;
         st.answers.position = vac.position;
-        sessions.set(chatId, st);
+        await saveSession(chatId, st);
 
         const { data: prof } = await sb
           .from("ats_position_profiles")
@@ -491,57 +529,52 @@ export async function POST(req: NextRequest) {
           .select("data")
           .eq("id", "default")
           .maybeSingle();
-        const shifts: string[] = setRow?.data?.shifts?.length
-          ? setRow.data.shifts
-          : SHIFTS;
+        const shifts: string[] = setRow?.data?.shifts?.length ? setRow.data.shifts : SHIFTS;
 
-        await editOrSend(
-          token,
-          chatId,
-          msgId,
-          `${expText}\n\n🕒 Qulay smenani tanlang:`,
-          {
-            inline_keyboard: [
-              ...shifts.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
-              [{ text: "⬅️ Orqaga", callback_data: `branch:${st.branch || vac.branch}` }],
-            ],
-          }
-        );
+        await editOrSend(token, chatId, msgId, `${expText}\n\n🕒 Qulay smenani tanlang:`, {
+          inline_keyboard: [
+            ...shifts.map((s) => [{ text: s, callback_data: `shift:${s}` }]),
+            [{ text: "⬅️ Orqaga", callback_data: `branch:${st.branch || vac.branch}` }],
+          ],
+        });
         return NextResponse.json({ ok: true });
       }
 
-      // 5. Smena tanlandi -> Anketa boshlanadi
+      // 4. Smena tanlandi -> Anketa boshlanadi
       if (data.startsWith("shift:")) {
         const shift = data.replace("shift:", "");
-        const st = sessions.get(chatId) || { mode: "apply", step: "idle", answers: {} };
+        const st = (await getSession(chatId)) || {
+          mode: "apply",
+          step: "idle",
+          answers: {},
+        };
         st.shift = shift;
         st.answers.shift = shift;
         st.step = "hasExp";
-        sessions.set(chatId, st);
+        await saveSession(chatId, st);
         await askNextQuestion(token, chatId, st);
         return NextResponse.json({ ok: true });
       }
 
-      // Zaxira rejimi (lekin Zaxira belgisisiz oddiy ariza sifatida)
       if (data.startsWith("reserve:")) {
         const city = data.replace("reserve:", "");
-        const st = sessions.get(chatId) || { mode: "reserve", step: "hasExp", answers: {} };
-        st.mode = "reserve";
-        st.city = city;
-        st.answers.city = city;
-        st.answers.branch = city;
-        st.answers.position = "Umumiy ariza";
-        st.step = "hasExp";
-        sessions.set(chatId, st);
+        const st: SessionState = {
+          mode: "reserve",
+          step: "hasExp",
+          region: city,
+          city,
+          answers: { region: city, city, branch: city, position: "Umumiy ariza" },
+        };
+        await saveSession(chatId, st);
         await askNextQuestion(token, chatId, st);
         return NextResponse.json({ ok: true });
       }
 
-      // Inline savol javoblari
+      // Inline savollar
       if (data.startsWith("ans:")) {
         const [, field, val] = data.split(":");
-        const st = sessions.get(chatId);
-        if (!st) return NextResponse.json({ ok: true });
+        const st = await getSession(chatId);
+        if (!st || st.step === "idle") return NextResponse.json({ ok: true });
 
         st.answers[field] = val;
 
@@ -560,17 +593,17 @@ export async function POST(req: NextRequest) {
         else if (field === "ruLang") st.step = "totalExp";
         else if (field === "totalExp") st.step = "lastWork";
         else if (field === "illness") {
-          st.step = val === "Ha" ? "illnessNote" : "consent";
+          st.step = val === "Ha" ? "illnessNote" : "photo";
         }
 
-        sessions.set(chatId, st);
+        await saveSession(chatId, st);
         await askNextQuestion(token, chatId, st);
         return NextResponse.json({ ok: true });
       }
 
-      // Yakuniy rozilik
+      // Yakuniy tasdiqlash
       if (data === "consent:yes") {
-        const st = sessions.get(chatId);
+        const st = await getSession(chatId);
         if (!st || !st.answers.phone) return NextResponse.json({ ok: true });
         const fullName = `${st.answers.lastName || ""} ${st.answers.firstName || ""}`.trim();
 
@@ -591,6 +624,7 @@ export async function POST(req: NextRequest) {
             lastWorkplace: st.answers.lastWork,
             telegramChatId: String(chatId),
             telegramUsername: cq.from?.username ? `@${cq.from.username}` : undefined,
+            avatarUrl: st.avatarUrl,
             questionnaireData: st.answers,
           });
         } else if (st.vacancyId) {
@@ -608,15 +642,19 @@ export async function POST(req: NextRequest) {
             lastWorkplace: st.answers.lastWork,
             telegramChatId: String(chatId),
             telegramUsername: cq.from?.username ? `@${cq.from.username}` : undefined,
+            avatarUrl: st.avatarUrl,
             questionnaireData: st.answers,
           });
         }
 
-        sessions.set(chatId, { mode: "apply", step: "idle", answers: {} });
-        await sendTelegramMessage(
-          String(chatId),
+        await clearSession(chatId);
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
           "✅ Arizangiz muvaffaqiyatli qabul qilindi! Har bir bosqich o'zgarishi haqida shu bot orqali xabar olasiz."
         );
+        return NextResponse.json({ ok: true });
       }
       return NextResponse.json({ ok: true });
     }
@@ -627,7 +665,7 @@ export async function POST(req: NextRequest) {
     const text = (msg.text || "").trim();
 
     if (text === "/start") {
-      sessions.set(chatId, { mode: "apply", step: "idle", answers: {} });
+      await clearSession(chatId);
       await tgCall(token, "sendMessage", {
         chat_id: chatId,
         text: "Assalomu alaykum! Rekruting ATS tizimiga xush kelibsiz.\nBo'sh ish o'rinlarini ko'rish uchun tugmani bosing:",
@@ -640,6 +678,37 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === "📋 Bo'sh ish o'rinlari") {
+      await clearSession(chatId);
+      // 6-band: Avvalgi anketa bor-yo'qligini tekshirish
+      const { data: existingCand } = await sb
+        .from("ats_candidates")
+        .select("id, full_name")
+        .eq("telegram_chat_id", String(chatId))
+        .maybeSingle();
+
+      if (existingCand) {
+        const { data: blApp } = await sb
+          .from("ats_applications")
+          .select("id")
+          .eq("candidate_id", existingCand.id)
+          .eq("status", "blacklist")
+          .limit(1)
+          .maybeSingle();
+
+        if (blApp) {
+          await sendTelegramMessage(
+            String(chatId),
+            "Kechirasiz, sizning arizangiz hozirda tizim tomonidan qabul qilinmaydi."
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        await sendTelegramMessage(
+          String(chatId),
+          `ℹ️ <b>${existingCand.full_name}</b>, sizda tizimda avval to'ldirilgan anketa mavjud. Yangi ariza topshirsangiz, ma'lumotlaringiz yangilanadi.`
+        );
+      }
+
       const { data: openVacs } = await sb
         .from("ats_vacancies")
         .select("region")
@@ -653,7 +722,7 @@ export async function POST(req: NextRequest) {
         text:
           regions.length > 0
             ? "Qaysi hududda ishlamoqchisiz? Hududni tanlang:"
-            : "Hozircha ochiq vakansiyalar mavjud emas, ammo umumiy ariza qoldirishingiz mumkin:",
+            : "Hozircha ochiq vakansiyalar mavjud emas, ammo ariza qoldirishingiz mumkin:",
         reply_markup: {
           inline_keyboard: [
             ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
@@ -682,19 +751,29 @@ export async function POST(req: NextRequest) {
         const stages = TRACK_CONFIGS[a.track as TrackType]?.stages || [];
         const curIdx = stages.findIndex((s) => s.id === a.current_stage);
         const stLabel = stages[curIdx]?.labelUz || a.current_stage;
-        const bar = stages
-          .map((_, idx) => (idx <= curIdx ? "🟢" : "⚪"))
-          .join(" ");
+        const bar = stages.map((_, idx) => (idx <= curIdx ? "🟢" : "⚪")).join(" ");
         return `💼 Bosqich: <b>${stLabel}</b>\n${bar}`;
       });
       await sendTelegramMessage(
         String(chatId),
-        lines.length ? lines.join("\n") : "Arizalar topilmadi."
+        lines.length ? lines.join("\n\n") : "Arizalar topilmadi."
       );
       return NextResponse.json({ ok: true });
     }
 
+    const st = await getSession(chatId);
+
+    // Rasm yuborilganda: agar anketa "photo" qadamida bo'lsa avatar sifatida saqlanadi, aks holda pasport hujjati
     if (msg.photo) {
+      const photo = msg.photo[msg.photo.length - 1];
+      if (st && st.step === "photo") {
+        st.avatarUrl = `/api/telegram/file?file_id=${photo.file_id}`;
+        st.step = "consent";
+        await saveSession(chatId, st);
+        await askNextQuestion(token, chatId, st);
+        return NextResponse.json({ ok: true });
+      }
+
       const { data: cand } = await sb
         .from("ats_candidates")
         .select("id, full_name")
@@ -709,12 +788,11 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .maybeSingle();
         if (app) {
-          const photo = msg.photo[msg.photo.length - 1];
           await addDocument({
             applicationId: app.id,
             docType: "pasport_id",
             fileName: `tg_passport_${photo.file_id.slice(0, 8)}.jpg`,
-            fileUrl: `telegram://file/${photo.file_id}`,
+            fileUrl: `/api/telegram/file?file_id=${photo.file_id}`,
             actorName: cand.full_name,
           });
           await sendTelegramMessage(String(chatId), "✅ Pasport / ID karta rasmingiz qabul qilindi!");
@@ -723,7 +801,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const st = sessions.get(chatId);
     if (!st || st.step === "idle") return NextResponse.json({ ok: true });
 
     if (st.step === "firstName") {
@@ -746,10 +823,10 @@ export async function POST(req: NextRequest) {
       st.step = "illness";
     } else if (st.step === "illnessNote") {
       st.answers.illness = `Ha: ${text}`;
-      st.step = "consent";
+      st.step = "photo";
     }
 
-    sessions.set(chatId, st);
+    await saveSession(chatId, st);
     await askNextQuestion(token, chatId, st);
     return NextResponse.json({ ok: true });
   } catch {

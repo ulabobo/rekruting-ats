@@ -761,7 +761,11 @@ export default function AtsDashboard({
                 <div className="flex gap-4 overflow-x-auto pb-4">
                   {trackConfig.stages.map((stage) => {
                     const stageApps = trackApps.filter(
-                      (a) => a.currentStage === stage.id && a.status !== "rejected"
+                      (a) =>
+                        a.currentStage === stage.id &&
+                        a.status !== "rejected" &&
+                        a.status !== "blacklist" &&
+                        a.status !== "reserved"
                     );
                     return (
                       <div
@@ -809,13 +813,21 @@ export default function AtsDashboard({
                                 >
                                   {/* Avatar + Name + Position (2-rasm uslubida) */}
                                   <div className="flex items-center gap-3">
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5865f2] to-[#3b82f6] text-xs font-extrabold text-white shadow-xs">
-                                      {cand.fullName
-                                        .split(" ")
-                                        .slice(0, 2)
-                                        .map((n) => n[0])
-                                        .join("")}
-                                    </div>
+                                    {cand.avatarUrl ? (
+                                      <img
+                                        src={cand.avatarUrl}
+                                        alt={cand.fullName}
+                                        className="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover shadow-xs"
+                                      />
+                                    ) : (
+                                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5865f2] to-[#3b82f6] text-xs font-extrabold text-white shadow-xs">
+                                        {cand.fullName
+                                          .split(" ")
+                                          .slice(0, 2)
+                                          .map((n) => n[0])
+                                          .join("")}
+                                      </div>
+                                    )}
                                     <div className="min-w-0 flex-1">
                                       <p className="truncate text-sm font-bold text-slate-900">
                                         {cand.fullName}

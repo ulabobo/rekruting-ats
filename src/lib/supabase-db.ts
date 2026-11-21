@@ -576,36 +576,88 @@ export async function moveApplicationStage(params: {
     .maybeSingle();
 
   if (cand && vac) {
-    await sendStageTemplateToCandidate({
-      track,
-      stage: params.targetStage,
-      candidate: {
-        id: cand.id,
-        phone: cand.phone,
-        fullName: cand.full_name,
-        source: cand.source,
-        isInternal: cand.is_internal,
-        telegramChatId: cand.telegram_chat_id,
-        tags: cand.tags || [],
-        createdAt: cand.created_at,
-      },
-      vacancy: {
-        id: vac.id,
-        track: vac.track,
-        city: vac.city || "Toshkent",
-        branch: vac.branch,
-        position: vac.position,
-        salaryBand: vac.salary_band,
-        headcount: vac.headcount,
-        filledCount: vac.filled_count,
-        approvedAt: vac.approved_at,
-        slaDays: vac.sla_days,
-        responsibleRecruiterId: vac.responsible_recruiter_id,
-        hiringManagerName: vac.hiring_manager_name,
-        status: vac.status,
-      },
-      lang: params.lang,
-    });
+    if (params.targetStage === "test_kuni" && cand.telegram_chat_id) {
+      const tashkentNow = new Date(Date.now() + 5 * 3600 * 1000);
+      const d1 = new Date(tashkentNow.getTime() + 86400000);
+      const d2 = new Date(tashkentNow.getTime() + 2 * 86400000);
+      const iso1 = d1.toISOString().slice(0, 10);
+      const iso2 = d2.toISOString().slice(0, 10);
+      const fmt = (iso: string) => {
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`;
+      };
+      const shiftVal =
+        (cand.questionnaire_data && cand.questionnaire_data.shift) ||
+        vac.shift ||
+        "To'liq kun (5/2)";
+
+      await sb.from("ats_onboarding_flows").upsert(
+        {
+          id: `onb-${app.id}`,
+          application_id: app.id,
+          candidate_id: cand.id,
+          chat_id: cand.telegram_chat_id,
+          step: "awaiting_test_date",
+          shift: shiftVal,
+          survey_index: 0,
+          survey_answers: [],
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "application_id" }
+      );
+
+      const inviteText =
+        `🎉 <b>Tabriklaymiz, ${cand.full_name}!</b>\n\n` +
+        `Siz <b>${vac.branch}</b> filialidagi <b>${vac.position}</b> lavozimi bo'yicha <b>1 kunlik sinov kuniga</b> taklif qilindingiz!\n` +
+        `🕒 Smena: <b>${shiftVal}</b>\n\n` +
+        `📅 Iltimos, sinov kuniga chiqish uchun o'zingizga qulay sanani tanlang:`;
+
+      const tgRes = await sendTelegramMessage(cand.telegram_chat_id, inviteText, {
+        inline_keyboard: [
+          [{ text: `📅 ${fmt(iso1)} (Ertaga)`, callback_data: `onboard:testdate:${iso1}` }],
+          [{ text: `📅 ${fmt(iso2)} (Indinga)`, callback_data: `onboard:testdate:${iso2}` }],
+        ],
+      });
+
+      await logIntegration({
+        direction: "outbound",
+        system: "TelegramBot",
+        eventType: "AUTO_STAGE_TEST_KUNI_INVITE",
+        payloadSummary: `${cand.full_name}: ${tgRes.ok ? "Sinov kuni taklifi yuborildi" : tgRes.error}`,
+        status: tgRes.ok ? "success" : "failed",
+      });
+    } else {
+      await sendStageTemplateToCandidate({
+        track,
+        stage: params.targetStage,
+        candidate: {
+          id: cand.id,
+          phone: cand.phone,
+          fullName: cand.full_name,
+          source: cand.source,
+          isInternal: cand.is_internal,
+          telegramChatId: cand.telegram_chat_id,
+          tags: cand.tags || [],
+          createdAt: cand.created_at,
+        },
+        vacancy: {
+          id: vac.id,
+          track: vac.track,
+          city: vac.city || "Toshkent",
+          branch: vac.branch,
+          position: vac.position,
+          salaryBand: vac.salary_band,
+          headcount: vac.headcount,
+          filledCount: vac.filled_count,
+          approvedAt: vac.approved_at,
+          slaDays: vac.sla_days,
+          responsibleRecruiterId: vac.responsible_recruiter_id,
+          hiringManagerName: vac.hiring_manager_name,
+          status: vac.status,
+        },
+        lang: params.lang,
+      });
+    }
   }
 
   return { ok: true };

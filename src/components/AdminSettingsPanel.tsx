@@ -931,6 +931,62 @@ export default function AdminSettingsPanel({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
               />
             </div>
+
+            <div className="col-span-2">
+              <label className="mb-1 block font-semibold">
+                {lang === "ru"
+                  ? "Вопросы опроса после тест-дня (каждый с новой строки)"
+                  : "Sinov kunidan keyingi so'rovnoma savollari (har birini yangi qatordan yozing)"}
+              </label>
+              <textarea
+                rows={4}
+                value={(
+                  db.settings.testDaySurveyQuestions || [
+                    "1. Bugungi sinov kunida jamoadagi muhit va hamkasblarning munosabati sizga qanday taassurot qoldirdi?",
+                    "2. Lavozim vazifalari va ish jarayoni sizga tushunarli bo'ldimi?",
+                    "3. Ish joyi sharoitlari (tozalik, qulaylik, tartib) haqida fikringiz qanday?",
+                  ]
+                ).join("\n")}
+                onChange={(e) =>
+                  onUpdateDb({
+                    ...db,
+                    settings: {
+                      ...db.settings,
+                      testDaySurveyQuestions: e.target.value
+                        .split("\n")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    },
+                  })
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="mb-1 block font-semibold">
+                {lang === "ru"
+                  ? "Mini Welcome Book и стандарты компании (отправляется с оффером)"
+                  : "Mini Welcome Book va Kompaniya standartlari (ish taklifi bilan yuboriladi)"}
+              </label>
+              <textarea
+                rows={5}
+                value={
+                  db.settings.welcomeBookText ??
+                  "📖 Mini Welcome Book va Kompaniya Standartlari\n\n• Ish vaqti: Smenadan 15 daqiqa oldin do'konda bo'lish shart.\n• Dress-kod: Kompaniya standartiga mos toza va tartibli kiyinish.\n• Mijozlarga xizmat: Har bir mijozni tabassum va xushmuomalalik bilan kutib olish.\n• O'qitish (LMS): Birinchi kunda do'kon menejeri sizga o'quv materiallarini ochib beradi."
+                }
+                onChange={(e) =>
+                  onUpdateDb({
+                    ...db,
+                    settings: {
+                      ...db.settings,
+                      welcomeBookText: e.target.value,
+                    },
+                  })
+                }
+                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+            </div>
           </div>
           <button
             onClick={async () => {

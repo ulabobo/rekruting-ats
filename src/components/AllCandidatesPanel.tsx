@@ -9,50 +9,77 @@ export default function AllCandidatesPanel({
   db,
   lang,
   onSelectApp,
+  lockedFilter,
 }: {
   db: AtsDatabase;
   lang: Language;
   onSelectApp: (appId: string) => void;
+  lockedFilter?: "reserved" | "blacklist";
 }) {
   const t = UI_TEXT[lang];
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(lockedFilter || "all");
+  const effectiveFilter = lockedFilter || statusFilter;
 
   const filtered = db.applications.filter((a) => {
-    if (statusFilter === "all") return true;
-    return a.status === statusFilter;
+    if (effectiveFilter === "all") return true;
+    return a.status === effectiveFilter;
   });
+
+  const panelTitle =
+    lockedFilter === "reserved"
+      ? lang === "ru"
+        ? "Резерв (Запас кадров)"
+        : "Zaxiradagi nomzodlar"
+      : lockedFilter === "blacklist"
+      ? lang === "ru"
+        ? "Черный список"
+        : "Qora ro'yxat"
+      : t.allCandidatesTitle;
+
+  const panelSubtitle =
+    lockedFilter === "reserved"
+      ? lang === "ru"
+        ? "Кандидаты, переведенные в кадровый резерв"
+        : "Kadrlar zaxirasiga olingan nomzodlar ro'yxati"
+      : lockedFilter === "blacklist"
+      ? lang === "ru"
+        ? "Заблокированные кандидаты (бот не принимает анкеты)"
+        : "Bloklangan nomzodlar (bot orqali qayta ariza topshira olmaydi)"
+      : t.allCandidatesSubtitle;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{t.allCandidatesTitle}</h2>
-          <p className="text-xs text-slate-500">{t.allCandidatesSubtitle}</p>
+          <h2 className="text-xl font-bold text-slate-900">{panelTitle}</h2>
+          <p className="text-xs text-slate-500">{panelSubtitle}</p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
-          {[
-            { id: "all", label: t.statusAll },
-            { id: "active", label: t.statusActive },
-            { id: "offered", label: t.statusOffered },
-            { id: "reserved", label: t.statusReserved },
-            { id: "hired", label: t.statusHired },
-            { id: "rejected", label: t.statusRejected },
-            { id: "blacklist", label: t.statusBlacklist },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`rounded-lg px-3 py-1.5 transition ${
-                statusFilter === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {!lockedFilter && (
+          <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
+            {[
+              { id: "all", label: t.statusAll },
+              { id: "active", label: t.statusActive },
+              { id: "offered", label: t.statusOffered },
+              { id: "reserved", label: t.statusReserved },
+              { id: "hired", label: t.statusHired },
+              { id: "rejected", label: t.statusRejected },
+              { id: "blacklist", label: t.statusBlacklist },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  effectiveFilter === tab.id
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">

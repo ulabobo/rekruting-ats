@@ -1,6 +1,7 @@
 export async function sendTelegramMessage(
   chatId: string,
-  text: string
+  text: string,
+  replyMarkup?: Record<string, unknown>
 ): Promise<{ ok: boolean; error?: string }> {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) {
@@ -11,14 +12,18 @@ export async function sendTelegramMessage(
   }
 
   try {
+    const payload: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+    };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "HTML",
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!data.ok) {
@@ -77,3 +82,16 @@ export function buildTemplateMessage(params: {
       );
   }
 }
+
+export const DEFAULT_TEST_DAY_SURVEY: string[] = [
+  "1. Bugungi sinov kunida jamoadagi muhit va hamkasblarning munosabati sizga qanday taassurot qoldirdi?",
+  "2. Lavozim vazifalari va ish jarayoni sizga tushunarli bo'ldimi?",
+  "3. Ish joyi sharoitlari (tozalik, qulaylik, tartib) haqida fikringiz qanday?",
+];
+
+export const DEFAULT_WELCOME_BOOK_TEXT =
+  `📖 <b>Mini Welcome Book va Kompaniya Standartlari</b>\n\n` +
+  `• <b>Ish vaqti:</b> Smenadan 15 daqiqa oldin do'konda bo'lish shart.\n` +
+  `• <b>Dress-kod:</b> Kompaniya standartiga mos toza va tartibli kiyinish.\n` +
+  `• <b>Mijozlarga xizmat:</b> Har bir mijozni tabassum va xushmuomalalik bilan kutib olish.\n` +
+  `• <b>O'qitish (LMS):</b> Birinchi kunda do'kon menejeri sizga o'quv materiallarini ochib beradi.`;

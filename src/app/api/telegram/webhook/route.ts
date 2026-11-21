@@ -7,6 +7,7 @@ import {
   normalizePhone,
 } from "@/lib/supabase-db";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { TrackType } from "@/types/ats";
 
@@ -384,6 +385,11 @@ export async function POST(req: NextRequest) {
 
       await tgCall(token, "answerCallbackQuery", { callback_query_id: cq.id });
 
+      if (data.startsWith("onboard:")) {
+        await handleOnboardingCallback(token, chatId, msgId, data);
+        return NextResponse.json({ ok: true });
+      }
+
       if (data === "cancel") {
         await clearSession(chatId);
         await editOrSend(
@@ -675,6 +681,13 @@ export async function POST(req: NextRequest) {
         },
       });
       return NextResponse.json({ ok: true });
+    }
+
+    if (text !== "📋 Bo'sh ish o'rinlari" && text !== "📄 Ariza holati") {
+      const handledOnboarding = await handleOnboardingMessage(token, chatId, msg);
+      if (handledOnboarding) {
+        return NextResponse.json({ ok: true });
+      }
     }
 
     if (text === "📋 Bo'sh ish o'rinlari") {

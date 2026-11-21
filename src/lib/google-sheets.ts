@@ -381,3 +381,95 @@ export async function syncDatabaseToGoogleSheets(
     };
   }
 }
+
+export async function appendHujjatlarRowToSheets(params: {
+  existingSpreadsheetId?: string;
+  row: {
+    date: string;
+    fullName: string;
+    phone: string;
+    branch: string;
+    position: string;
+    shift: string;
+    salary: string;
+    testDate: string;
+    passportFrontUrl: string;
+    passportBackUrl: string;
+    photo3x4Url: string;
+    surveySummary: string;
+  };
+}): Promise<{ ok: boolean; error?: string }> {
+  const auth = getAuthClient();
+  if (!auth) return { ok: false, error: "Google Sheets ulanmagan" };
+
+  try {
+    const { spreadsheetId } = await ensureRekrutAtsSpreadsheet(params.existingSpreadsheetId);
+    const sheets = google.sheets({ version: "v4", auth });
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheetExists = meta.data.sheets?.some(
+      (s) => s.properties?.title === "Hujjatlar"
+    );
+
+    if (!sheetExists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: "Hujjatlar" } } }],
+        },
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: "Hujjatlar!A1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [
+            [
+              "Sana",
+              "F.I.O",
+              "Telefon (Hujjat)",
+              "Filial",
+              "Lavozim",
+              "Smena",
+              "Oylik maosh",
+              "Sinov sanasi",
+              "Pasport / ID (Oldi)",
+              "Pasport / ID (Orqasi)",
+              "3x4 Rasm",
+              "Sinov so'rovnomasi",
+            ],
+          ],
+        },
+      });
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "Hujjatlar!A:L",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [
+          [
+            params.row.date,
+            params.row.fullName,
+            params.row.phone,
+            params.row.branch,
+            params.row.position,
+            params.row.shift,
+            params.row.salary,
+            params.row.testDate,
+            params.row.passportFrontUrl,
+            params.row.passportBackUrl,
+            params.row.photo3x4Url,
+            params.row.surveySummary,
+          ],
+        ],
+      },
+    });
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Sheets append xatosi",
+    };
+  }
+}

@@ -154,6 +154,7 @@ export type DocumentType =
   | "amaliy_topshiriq"
   | "offer"
   | "pasport_id"
+  | "photo_3x4"
   | "welcome_book";
 
 export interface DocumentRecord {
@@ -233,6 +234,8 @@ export interface SystemSettings {
   offerTimerStoreDays: number;
   offerTimerOfficeDays: number;
   shifts?: string[];
+  testDaySurveyQuestions?: string[];
+  welcomeBookText?: string;
   googleSpreadsheetId?: string;
   googleSpreadsheetUrl?: string;
   googleLastSyncAt?: string;

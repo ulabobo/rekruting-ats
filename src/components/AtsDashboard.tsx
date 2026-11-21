@@ -4,8 +4,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  Ban,
   BarChart3,
   Bell,
+  Bookmark,
   Briefcase,
   Building2,
   Calendar,
@@ -47,6 +49,8 @@ type NavSection =
   | { kind: "track"; track: TrackType }
   | { kind: "vacancies" }
   | { kind: "all_candidates" }
+  | { kind: "reserved" }
+  | { kind: "blacklist" }
   | { kind: "analytics" }
   | { kind: "settings" };
 
@@ -121,6 +125,7 @@ export default function AtsDashboard({
     const timer = setInterval(async () => {
       try {
         await fetch("/api/sheets/poll", { method: "POST" }).catch(() => {});
+        await fetch("/api/cron/onboarding").catch(() => {});
         const res = await fetch("/api/ats", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
@@ -382,6 +387,54 @@ export default function AtsDashboard({
               </button>
 
               <button
+                onClick={() => setActiveNav({ kind: "reserved" })}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "reserved"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Bookmark className="h-4 w-4" />
+                  {t.statusReserved}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    activeNav.kind === "reserved"
+                      ? "bg-white/20 text-white"
+                      : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {db.applications.filter((a) => a.status === "reserved").length}
+                </span>
+              </button>
+
+              {currentUser.role === "admin" && (
+                <button
+                  onClick={() => setActiveNav({ kind: "blacklist" })}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                    activeNav.kind === "blacklist"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Ban className="h-4 w-4" />
+                    {t.statusBlacklist}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      activeNav.kind === "blacklist"
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {db.applications.filter((a) => a.status === "blacklist").length}
+                  </span>
+                </button>
+              )}
+
+              <button
                 onClick={() => setActiveNav({ kind: "analytics" })}
                 className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                   activeNav.kind === "analytics"
@@ -621,6 +674,24 @@ export default function AtsDashboard({
             <AllCandidatesPanel
               db={db}
               lang={lang}
+              onSelectApp={(id) => setSelectedAppId(id)}
+            />
+          )}
+
+          {activeNav.kind === "reserved" && (
+            <AllCandidatesPanel
+              db={db}
+              lang={lang}
+              lockedFilter="reserved"
+              onSelectApp={(id) => setSelectedAppId(id)}
+            />
+          )}
+
+          {activeNav.kind === "blacklist" && currentUser.role === "admin" && (
+            <AllCandidatesPanel
+              db={db}
+              lang={lang}
+              lockedFilter="blacklist"
               onSelectApp={(id) => setSelectedAppId(id)}
             />
           )}

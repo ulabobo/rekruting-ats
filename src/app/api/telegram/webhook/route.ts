@@ -348,6 +348,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
         text: `${hdr}📢 Biz haqimizda qayerdan eshitdingiz / vakansiyani qayerda ko'rdingiz?`,
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [

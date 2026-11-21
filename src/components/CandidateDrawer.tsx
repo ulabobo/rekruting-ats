@@ -288,7 +288,7 @@ export default function CandidateDrawer({
     }
   };
 
-  const handleSetStatus = async (status: "reserved" | "blacklist") => {
+  const handleSetStatus = async (status: "active" | "reserved" | "blacklist") => {
     let reason = "";
     if (status === "blacklist") {
       const input = window.prompt(
@@ -319,7 +319,11 @@ export default function CandidateDrawer({
         onUpdateDb(data.db);
         showToast(
           "ok",
-          status === "blacklist"
+          status === "active"
+            ? lang === "ru"
+              ? "Восстановлен в активные"
+              : "Faol ro'yxatga qayta tiklandi"
+            : status === "blacklist"
             ? lang === "ru"
               ? "Добавлен в черный список"
               : "Qora ro'yxatga qo'shildi"
@@ -450,6 +454,18 @@ export default function CandidateDrawer({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {(application.status === "reserved" ||
+              application.status === "rejected" ||
+              (application.status === "blacklist" && currentUser.role === "admin")) && (
+              <button
+                onClick={() => handleSetStatus("active")}
+                disabled={busy}
+                className="flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {lang === "ru" ? "Восстановить" : "Faolga tiklash"}
+              </button>
+            )}
             {application.status === "active" && !isAutopilot && (
               <button
                 onClick={handleMissedCall}

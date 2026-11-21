@@ -467,9 +467,17 @@ export async function handleOnboardingCallback(
         })
         .eq("id", vac.id);
 
-      await incrementStaffingFactInSheets({
+      const stRes = await incrementStaffingFactInSheets({
         branch: vac.branch,
         position: vac.position,
+      });
+      await sb.from("ats_integration_events").insert({
+        id: `evt-${Date.now()}-st`,
+        direction: "outbound",
+        system: "GoogleSheets",
+        event_type: "SHTATKA_FACT_INCREMENT",
+        payload_summary: `${vac.branch} — ${vac.position}: ${stRes.ok ? "+1 Band yangilandi" : stRes.error}`,
+        status: stRes.ok ? "success" : "failed",
       });
 
       if (isClosed) {

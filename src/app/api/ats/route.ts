@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         actorId: body.actorId || "u-admin",
         actorName: body.actorName || "Admin",
         lang: body.lang || "uz",
+        customMessage: body.customMessage,
       });
       if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
       const db = await getFullDatabase();

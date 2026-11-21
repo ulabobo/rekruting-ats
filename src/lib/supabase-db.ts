@@ -347,24 +347,34 @@ async function sendStageTemplateToCandidate(params: {
   candidate: Candidate;
   vacancy: Vacancy;
   lang?: Language;
+  customText?: string;
 }) {
   const sb = getSupabase();
-  const { data: tpl } = await sb
-    .from("ats_message_templates")
-    .select("*")
-    .eq("track", params.track)
-    .eq("stage", params.stage)
-    .eq("enabled", true)
-    .maybeSingle();
+  let text = params.customText?.trim() || "";
 
-  if (!tpl) return;
+  if (!text) {
+    const { data: tpl } = await sb
+      .from("ats_message_templates")
+      .select("*")
+      .eq("track", params.track)
+      .eq("stage", params.stage)
+      .eq("enabled", true)
+      .maybeSingle();
 
-  const rawText = params.lang === "ru" ? tpl.template_ru : tpl.template_uz;
-  const text = rawText
-    .replaceAll("{ism}", params.candidate.fullName)
-    .replaceAll("{lavozim}", params.vacancy.position)
-    .replaceAll("{filial}", params.vacancy.branch)
-    .replaceAll("{maosh}", params.vacancy.salaryBand);
+    if (!tpl) return;
+
+    const shiftVal =
+      params.candidate.questionnaireData?.shift ||
+      params.vacancy.shift ||
+      "To'liq kun (5/2)";
+    const rawText = params.lang === "ru" ? tpl.template_ru : tpl.template_uz;
+    text = rawText
+      .replaceAll("{ism}", params.candidate.fullName)
+      .replaceAll("{lavozim}", params.vacancy.position)
+      .replaceAll("{filial}", params.vacancy.branch)
+      .replaceAll("{maosh}", params.vacancy.salaryBand)
+      .replaceAll("{smena}", shiftVal);
+  }
 
   if (params.candidate.telegramChatId) {
     const res = await sendTelegramMessage(params.candidate.telegramChatId, text);
@@ -507,6 +517,7 @@ export async function moveApplicationStage(params: {
   actorId: string;
   actorName: string;
   lang?: Language;
+  customMessage?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const sb = getSupabase();
   const { data: app } = await sb
@@ -627,10 +638,12 @@ export async function moveApplicationStage(params: {
       );
 
       const inviteText =
+        params.customMessage?.trim() ||
         `🎉 <b>Tabriklaymiz, ${cand.full_name}!</b>\n\n` +
-        `Siz <b>${vac.branch}</b> filialidagi <b>${vac.position}</b> lavozimi bo'yicha <b>1 kunlik sinov kuniga</b> taklif qilindingiz!\n` +
-        `🕒 Smena: <b>${shiftVal}</b>\n\n` +
-        `📅 Iltimos, sinov kuniga chiqish uchun o'zingizga qulay sanani tanlang:`;
+          `Siz <b>${vac.branch}</b> filialidagi <b>${vac.position}</b> lavozimi bo'yicha <b>1 kunlik sinov kuniga</b> taklif qilindingiz!\n` +
+          `🕒 Smena: <b>${shiftVal}</b>\n\n` +
+          `⏰ <b>Muhim eslatma:</b> Sinov kuni biriktirilgan smenangizdan (<b>${shiftVal}</b>) <b>15 daqiqa oldin</b> do'kon hududida bo'lishingiz shart!\n\n` +
+          `📅 Iltimos, sinov kuniga chiqish uchun o'zingizga qulay sanani tanlang:`;
 
       const tgRes = await sendTelegramMessage(cand.telegram_chat_id, inviteText, {
         inline_keyboard: [
@@ -658,6 +671,7 @@ export async function moveApplicationStage(params: {
           isInternal: cand.is_internal,
           telegramChatId: cand.telegram_chat_id,
           tags: cand.tags || [],
+          questionnaireData: cand.questionnaire_data || {},
           createdAt: cand.created_at,
         },
         vacancy: {
@@ -666,6 +680,7 @@ export async function moveApplicationStage(params: {
           city: vac.city || "Toshkent",
           branch: vac.branch,
           position: vac.position,
+          shift: vac.shift,
           salaryBand: vac.salary_band,
           headcount: vac.headcount,
           filledCount: vac.filled_count,
@@ -676,6 +691,7 @@ export async function moveApplicationStage(params: {
           status: vac.status,
         },
         lang: params.lang,
+        customText: params.customMessage,
       });
     }
   }
@@ -1493,11 +1509,16 @@ export async function sendMissedCallMessage(params: {
       : tpl?.template_uz ||
         "Assalomu alaykum, {ism}! Biz sizga {filial} filialidagi {lavozim} lavozimi bo'yicha qo'ng'iroq qildik, ammo bog'lana olmadik. Qulay vaqtda shu botga yozing yoki qayta qo'ng'irog'imizni kuting.";
 
+  const shiftVal =
+    (cand.questionnaire_data && cand.questionnaire_data.shift) ||
+    vac?.shift ||
+    "To'liq kun (5/2)";
   const text = rawText
     .replaceAll("{ism}", cand.full_name || "")
     .replaceAll("{lavozim}", vac?.position || "")
     .replaceAll("{filial}", vac?.branch || "")
-    .replaceAll("{maosh}", vac?.salary_band || "");
+    .replaceAll("{maosh}", vac?.salary_band || "")
+    .replaceAll("{smena}", shiftVal);
 
   const tgRes = await sendTelegramMessage(cand.telegram_chat_id, text);
 

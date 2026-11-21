@@ -316,7 +316,7 @@ export default function AdminSettingsPanel({
             <div className="text-xs">
               <label className="mb-1 block font-semibold text-slate-700">
                 Matn (O&apos;zbekcha) — o&apos;zgaruvchilar: {"{ism}"}, {"{lavozim}"},{" "}
-                {"{filial}"}, {"{maosh}"}
+                {"{filial}"}, {"{maosh}"}, {"{smena}"}
               </label>
               <textarea
                 rows={3}

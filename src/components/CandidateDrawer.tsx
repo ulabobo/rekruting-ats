@@ -81,6 +81,10 @@ export default function CandidateDrawer({
     vacancy.shift ||
     "To'liq kun (5/2)";
   const [selectedShift, setSelectedShift] = useState(initialShift);
+  const [stageConfirm, setStageConfirm] = useState<{
+    targetStage: string;
+    message: string;
+  } | null>(null);
   const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(application.currentStage);
   const availableShifts =
     db.settings.shifts && db.settings.shifts.length > 0
@@ -92,7 +96,38 @@ export default function CandidateDrawer({
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleMoveStage = async (targetStage: string) => {
+  const openStageConfirm = (targetStage: string) => {
+    let defaultMsg = "";
+    if (targetStage === "test_kuni") {
+      defaultMsg =
+        `🎉 Tabriklaymiz, ${candidate.fullName}!\n\n` +
+        `Siz ${vacancy.branch} filialidagi ${vacancy.position} lavozimi bo'yicha 1 kunlik sinov kuniga taklif qilindingiz!\n` +
+        `🕒 Smena: ${initialShift}\n\n` +
+        `⏰ Muhim eslatma: Sinov kuni biriktirilgan smenangizdan (${initialShift}) 15 daqiqa oldin do'kon hududida bo'lishingiz shart!\n\n` +
+        `📅 Iltimos, sinov kuniga chiqish uchun o'zingizga qulay sanani tanlang:`;
+    } else {
+      const tpl = db.messageTemplates.find(
+        (m) => m.track === application.track && m.stage === targetStage && m.enabled
+      );
+      if (tpl) {
+        const raw = lang === "ru" ? tpl.templateRu : tpl.templateUz;
+        defaultMsg = raw
+          .replaceAll("{ism}", candidate.fullName)
+          .replaceAll("{lavozim}", vacancy.position)
+          .replaceAll("{filial}", vacancy.branch)
+          .replaceAll("{maosh}", vacancy.salaryBand)
+          .replaceAll("{smena}", initialShift);
+      } else {
+        defaultMsg =
+          lang === "ru"
+            ? `Здравствуйте, ${candidate.fullName}! Вы перешли на этап «${getStageLabel(application.track, targetStage, lang)}» по вакансии ${vacancy.position} (${vacancy.branch}).`
+            : `Assalomu alaykum, ${candidate.fullName}! Siz ${vacancy.branch} filialidagi ${vacancy.position} lavozimi bo'yicha «${getStageLabel(application.track, targetStage, lang)}» bosqichiga o'tdingiz.`;
+      }
+    }
+    setStageConfirm({ targetStage, message: defaultMsg });
+  };
+
+  const handleMoveStage = async (targetStage: string, customMessage?: string) => {
     setBusy(true);
     try {
       const res = await fetch("/api/ats", {
@@ -105,12 +140,14 @@ export default function CandidateDrawer({
           actorId: currentUser.id,
           actorName: currentUser.fullName,
           lang,
+          customMessage,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         showToast("err", data.error);
       } else {
+        setStageConfirm(null);
         onUpdateDb(data.db);
         showToast("ok", getStageLabel(application.track, targetStage, lang));
       }
@@ -464,7 +501,7 @@ export default function CandidateDrawer({
                       <button
                         key={st.id}
                         disabled={busy || !canClick}
-                        onClick={() => canClick && handleMoveStage(st.id)}
+                        onClick={() => canClick && openStageConfirm(st.id)}
                         title={
                           isAutopilot
                             ? "Bot avtopilotida"
@@ -757,6 +794,68 @@ export default function CandidateDrawer({
           </div>
         </div>
       </div>
+
+      {stageConfirm && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setStageConfirm(null);
+          }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]"
+        >
+          <div className="w-full max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-5 text-xs shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  {lang === "ru"
+                    ? "Проверить / изменить сообщение перед отправкой"
+                    : "Bosqichga o'tkazish xabarini tahrirlash"}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {getStageLabel(application.track, stageConfirm.targetStage, lang)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStageConfirm(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <textarea
+              rows={7}
+              value={stageConfirm.message}
+              onChange={(e) =>
+                setStageConfirm({ ...stageConfirm, message: e.target.value })
+              }
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs leading-relaxed focus:border-blue-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStageConfirm(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {lang === "ru" ? "Отмена" : "Bekor qilish"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  handleMoveStage(stageConfirm.targetStage, stageConfirm.message)
+                }
+                className="rounded-xl bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {busy
+                  ? "..."
+                  : lang === "ru"
+                  ? "Подтвердить и отправить"
+                  : "Tasdiqlash va yuborish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

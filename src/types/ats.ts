@@ -235,6 +235,7 @@ export interface OnboardingFolderItem {
   title: string;
   description: string;
   images: string[]; // data URLs or image URLs
+  enabled?: boolean;
 }
 
 export interface SystemSettings {

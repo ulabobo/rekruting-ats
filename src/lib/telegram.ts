@@ -162,6 +162,7 @@ export const DEFAULT_ONBOARDING_FOLDERS: OnboardingFolderItem[] = [
     description:
       "Aura kompaniyasiga xush kelibsiz! Bizning maqsadimiz — mijozlarga yuqori darajada xizmat ko'rsatish va ahil jamoa bo'lib ishlash. Birinchi kundan boshlab do'kon menejeri sizga LMS o'quv dasturini ochib beradi.",
     images: [],
+    enabled: true,
   },
   {
     id: "dress_code",
@@ -169,6 +170,7 @@ export const DEFAULT_ONBOARDING_FOLDERS: OnboardingFolderItem[] = [
     description:
       "• Toza va dazmollangan kompaniya formasi / klassik uslub.\n• Soch va tirnoqlar tartibli bo'lishi shart.\n• Kuchli atir va ortiqcha taqinchoqlarsiz, ozoda ko'rinish.",
     images: [],
+    enabled: true,
   },
   {
     id: "work_hours",
@@ -176,6 +178,7 @@ export const DEFAULT_ONBOARDING_FOLDERS: OnboardingFolderItem[] = [
     description:
       "• Smena boshlanishidan kamida 15 daqiqa oldin do'konda bo'lish.\n• Tushlik va tanaffuslar belgilangan jadval asosida.\n• Kechikish yoki sababli holatlar haqida rahbarni oldindan ogohlantirish.",
     images: [],
+    enabled: true,
   },
   {
     id: "store_conduct",
@@ -183,6 +186,7 @@ export const DEFAULT_ONBOARDING_FOLDERS: OnboardingFolderItem[] = [
     description:
       "• Savdo zalida telefon ishlatmaslik.\n• Har bir mijozni tabassum bilan kutib olish va yordam taklif qilish.\n• Javonlar tozaligi va mahsulotlar tartibini doimiy nazorat qilish.",
     images: [],
+    enabled: true,
   },
 ];
 

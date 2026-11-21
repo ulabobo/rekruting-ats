@@ -236,7 +236,7 @@ export async function handleOnboardingCallback(
 
     await editOrSendSimple(token, chatId, msgId, offerMsg);
 
-    for (const folder of folders) {
+    for (const folder of folders.filter((f) => f.enabled !== false)) {
       const caption = `📌 <b>${folder.title}</b>\n\n${folder.description}`;
       if (folder.images && folder.images.length > 0) {
         await sendTelegramPhoto(String(chatId), folder.images[0], caption);
@@ -250,19 +250,39 @@ export async function handleOnboardingCallback(
 
     await sendTelegramMessage(
       String(chatId),
-      `Barcha standartlar va shartlar bilan tanishib chiqdingizmi? Sizga ma'qulmi?`,
+      `Barcha ma'lumotlar va standartlar bilan tanishib chiqdingizmi? Ishga kirishga rozimisiz?`,
       {
         inline_keyboard: [
-          [{ text: "✅ Tanishib chiqdim, menga ma'qul", callback_data: "onboard:welcome:yes" }],
-          [{ text: "❌ Rad etaman", callback_data: "onboard:welcome:no" }],
+          [{ text: "✅ Ishga kirishga rozilik bildiraman", callback_data: "onboard:welcome:yes" }],
+          [{ text: "❌ Yo'q, rozi emasman", callback_data: "onboard:welcome:no" }],
         ],
       }
     );
     return true;
   }
 
-  // 3. Welcome Book va Ish taklifiga rozilik -> Hujjatlar bosqichi
+  // 3. Welcome Book va Ish taklifiga rozilik -> Rad etsa sabab so'rash / Rozi bo'lsa Hujjatlar bosqichi
   if (data === "onboard:welcome:no") {
+    await editOrSendSimple(
+      token,
+      chatId,
+      msgId,
+      "Tushunarli. Iltimos, ish taklifini rad etish sababingizni tanlang (bu bizga xizmatimizni yaxshilashga yordam beradi):",
+      {
+        inline_keyboard: [
+          [{ text: "💰 Oylik maosh to'g'ri kelmadi", callback_data: "onboard:decline_reason:Oylik maosh to'g'ri kelmadi" }],
+          [{ text: "🕒 Ish grafigi / smena to'g'ri kelmadi", callback_data: "onboard:decline_reason:Ish grafigi / smena to'g'ri kelmadi" }],
+          [{ text: "📍 Manzil / filial uzoq", callback_data: "onboard:decline_reason:Manzil / filial uzoq" }],
+          [{ text: "🔄 Boshqa ish topdim", callback_data: "onboard:decline_reason:Boshqa ish topdim" }],
+          [{ text: "💬 Boshqa sabab", callback_data: "onboard:decline_reason:Boshqa sabab" }],
+        ],
+      }
+    );
+    return true;
+  }
+
+  if (data.startsWith("onboard:decline_reason:")) {
+    const reason = data.replace("onboard:decline_reason:", "").trim() || "Ish taklifi rad etildi";
     await sb
       .from("ats_onboarding_flows")
       .update({ step: "cancelled_timeout", updated_at: new Date().toISOString() })
@@ -271,14 +291,14 @@ export async function handleOnboardingCallback(
       .from("ats_applications")
       .update({
         status: "rejected",
-        rejection_reason: "Nomzod ish taklifini rad etdi",
+        rejection_reason: `Ish taklifini rad etdi: ${reason}`,
       })
       .eq("id", flow.application_id);
     await editOrSendSimple(
       token,
       chatId,
       msgId,
-      "Tushunarli. Qiziqish bildirganingiz uchun rahmat!"
+      "Fikringiz uchun rahmat! Qiziqish bildirganingizdan xursandmiz, kelgusida omad tilaymiz."
     );
     return true;
   }
@@ -313,6 +333,137 @@ export async function handleOnboardingCallback(
         `Iltimos, <b>Pasport yoki ID kartangizning OLD tomoni</b> rasmini yuboring.\n\n` +
         `💡 <i>Namuna: Hujjat yorug' joyda, barcha yozuvlar va rasm aniq ko'rinadigan qilib (chetlari kesilmagan holda) suratga oling.</i>\n\n` +
         `⚠️ Eslatma: Hujjatlar 24 soat ichida yuborilmasa, nomzodlik bekor qilinadi.`
+    );
+    return true;
+  }
+
+  // 4. Shaxsiy ma'lumotlarni qayta ishlashga ruxsat -> Ishga qabul + ertangi ishga chiqish sanasi
+  if (data === "onboard:dataconsent:no") {
+    await sb
+      .from("ats_onboarding_flows")
+      .update({ step: "cancelled_timeout", updated_at: new Date().toISOString() })
+      .eq("id", flow.id);
+    await sb
+      .from("ats_applications")
+      .update({
+        status: "rejected",
+        rejection_reason: "Ma'lumotlarni qayta ishlashga ruxsat bermadi",
+      })
+      .eq("id", flow.application_id);
+    await editOrSendSimple(
+      token,
+      chatId,
+      msgId,
+      "Tushunarli. Ma'lumotlaringiz qayta ishlanmadi va ariza bekor qilindi."
+    );
+    return true;
+  }
+
+  if (data === "onboard:dataconsent:yes") {
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const tashkentTomorrow = new Date(nowMs + 5 * 3600 * 1000 + 86400000);
+    const tomorrowIso = tashkentTomorrow.toISOString().slice(0, 10);
+    const [ty, tm, td] = tomorrowIso.split("-");
+    const tomorrowDisplay = `${td}.${tm}.${ty}`;
+
+    await sb
+      .from("ats_onboarding_flows")
+      .update({
+        step: "completed",
+        updated_at: nowIso,
+      })
+      .eq("id", flow.id);
+
+    await sb
+      .from("ats_applications")
+      .update({
+        status: "hired",
+        current_stage: "hujjat_lms",
+        hire_start_date: tomorrowIso,
+        lms_transferred_at: nowIso,
+      })
+      .eq("id", flow.application_id);
+
+    const { data: setRow } = await sb
+      .from("ats_settings")
+      .select("data")
+      .eq("id", "default")
+      .maybeSingle();
+
+    if (vac && app) {
+      const nextFilled = Math.min(vac.headcount || 1, (vac.filled_count || 0) + 1);
+      const isClosed = nextFilled >= (vac.headcount || 1);
+      await sb
+        .from("ats_vacancies")
+        .update({
+          filled_count: nextFilled,
+          status: isClosed ? "closed" : vac.status,
+        })
+        .eq("id", vac.id);
+
+      await incrementStaffingFactInSheets({
+        branch: vac.branch,
+        position: vac.position,
+      });
+
+      if (isClosed) {
+        await notifyApplicantsVacancyClosed(vac.id, app.id);
+      }
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://rekruting-ats.onrender.com";
+    const frontUrl = flow.passport_front_file_id
+      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_front_file_id)}`
+      : "";
+    const backUrl = flow.passport_back_file_id
+      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_back_file_id)}`
+      : "";
+    const p3x4Url = flow.photo_3x4_file_id
+      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.photo_3x4_file_id)}`
+      : "";
+    const surveyArr: { question: string; answer: string }[] = Array.isArray(flow.survey_answers)
+      ? flow.survey_answers
+      : [];
+    const surveySummary = surveyArr.map((s) => `${s.question}: ${s.answer}`).join(" | ");
+
+    await appendHujjatlarRowToSheets({
+      existingSpreadsheetId: setRow?.data?.googleSpreadsheetId,
+      row: {
+        date: nowIso.slice(0, 10),
+        fullName: cand?.full_name || "—",
+        phone: flow.doc_phone || cand?.phone || "—",
+        branch: vac?.branch || "—",
+        position: vac?.position || "—",
+        shift: flow.shift || vac?.shift || "—",
+        salary: vac?.salary_band || "—",
+        testDate: flow.test_date || "—",
+        passportFrontUrl: frontUrl,
+        passportBackUrl: backUrl,
+        photo3x4Url: p3x4Url,
+        surveySummary,
+      },
+    });
+
+    await sb.from("ats_notifications").insert({
+      id: `notif-${Date.now()}`,
+      title: "Yangi xodim ishga qabul qilindi!",
+      message: `${cand?.full_name || "Nomzod"} hujjatlarni yakunladi va rozilik berdi. Ishga chiqish sanasi: ${tomorrowDisplay}.`,
+      type: "success",
+      read: false,
+      related_application_id: flow.application_id,
+    });
+
+    await editOrSendSimple(
+      token,
+      chatId,
+      msgId,
+      `🎉 <b>Tabriklaymiz, ${cand?.full_name || ""}! Siz ishga qabul qilindingiz!</b>\n\n` +
+        `📅 Ishga chiqish sanangiz: <b>${tomorrowDisplay}</b> (ertaga)\n` +
+        `🏢 Filial: <b>${vac?.branch || "—"}</b>\n` +
+        `💼 Lavozim: <b>${vac?.position || "—"}</b>\n` +
+        `🕒 Smena: <b>${flow.shift || vac?.shift || "—"}</b> (15 daqiqa oldin kelishni unutmang)\n\n` +
+        `Aura jamoasiga xush kelibsiz! 🤝`
     );
     return true;
   }
@@ -536,104 +687,21 @@ export async function handleOnboardingMessage(
       .from("ats_onboarding_flows")
       .update({
         photo_3x4_file_id: photo.file_id,
-        step: "completed",
+        step: "awaiting_data_consent",
         updated_at: nowIso,
       })
       .eq("id", flow.id);
 
-    await sb
-      .from("ats_applications")
-      .update({
-        status: "hired",
-        current_stage: "hujjat_lms",
-        lms_transferred_at: nowIso,
-      })
-      .eq("id", flow.application_id);
-
-    const { data: cand } = await sb
-      .from("ats_candidates")
-      .select("*")
-      .eq("id", flow.candidate_id)
-      .maybeSingle();
-    const { data: app } = await sb
-      .from("ats_applications")
-      .select("*")
-      .eq("id", flow.application_id)
-      .maybeSingle();
-    const { data: vac } = app
-      ? await sb.from("ats_vacancies").select("*").eq("id", app.vacancy_id).maybeSingle()
-      : { data: null };
-    const { data: setRow } = await sb
-      .from("ats_settings")
-      .select("data")
-      .eq("id", "default")
-      .maybeSingle();
-
-    if (vac && app) {
-      const nextFilled = Math.min(vac.headcount || 1, (vac.filled_count || 0) + 1);
-      const isClosed = nextFilled >= (vac.headcount || 1);
-      await sb
-        .from("ats_vacancies")
-        .update({
-          filled_count: nextFilled,
-          status: isClosed ? "closed" : vac.status,
-        })
-        .eq("id", vac.id);
-
-      await incrementStaffingFactInSheets({
-        branch: vac.branch,
-        position: vac.position,
-      });
-
-      if (isClosed) {
-        await notifyApplicantsVacancyClosed(vac.id, app.id);
-      }
-    }
-
-    const frontUrl = flow.passport_front_file_id
-      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_front_file_id)}`
-      : "";
-    const backUrl = flow.passport_back_file_id
-      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_back_file_id)}`
-      : "";
-    const p3x4Url = `${baseUrl}${photo3x4Path}`;
-    const surveyArr: { question: string; answer: string }[] = Array.isArray(flow.survey_answers)
-      ? flow.survey_answers
-      : [];
-    const surveySummary = surveyArr.map((s) => `${s.question}: ${s.answer}`).join(" | ");
-
-    await appendHujjatlarRowToSheets({
-      existingSpreadsheetId: setRow?.data?.googleSpreadsheetId,
-      row: {
-        date: new Date().toISOString().slice(0, 10),
-        fullName: cand?.full_name || "—",
-        phone: flow.doc_phone || cand?.phone || "—",
-        branch: vac?.branch || "—",
-        position: vac?.position || "—",
-        shift: flow.shift || vac?.shift || "—",
-        salary: vac?.salary_band || "—",
-        testDate: flow.test_date || "—",
-        passportFrontUrl: frontUrl,
-        passportBackUrl: backUrl,
-        photo3x4Url: p3x4Url,
-        surveySummary,
-      },
-    });
-
-    await sb.from("ats_notifications").insert({
-      id: `notif-${Date.now()}`,
-      title: "Hujjatlar to'liq qabul qilindi",
-      message: `${cand?.full_name || "Nomzod"} barcha hujjatlarini (pasport oldi/orqasi, telefon, 3x4 rasm) bot orqali yubordi va Google Sheets'ga saqlandi.`,
-      type: "success",
-      read: false,
-      related_application_id: flow.application_id,
-    });
-
     await sendTelegramMessage(
       String(chatId),
-      `✅ <b>Tabriklaymiz, ${cand?.full_name || ""}!</b>\n\n` +
-        `Barcha hujjatlaringiz muvaffaqiyatli qabul qilindi va tizimga kiritildi.\n` +
-        `Tez orada HR menejerimiz ishga chiqish tafsilotlari bo'yicha siz bilan bog'lanadi!`
+      `📋 <b>Barcha hujjatlaringiz qabul qilindi!</b>\n\n` +
+        `Shaxsiy ma'lumotlaringizni qayta ishlash va sizni rasmiy ishga qabul qilish jarayonini yakunlashga ruxsat berasizmi?`,
+      {
+        inline_keyboard: [
+          [{ text: "✅ Ha, ruxsat beraman (Tasdiqlash)", callback_data: "onboard:dataconsent:yes" }],
+          [{ text: "❌ Bekor qilish", callback_data: "onboard:dataconsent:no" }],
+        ],
+      }
     );
     return true;
   }

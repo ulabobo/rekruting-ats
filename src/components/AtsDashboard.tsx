@@ -655,7 +655,13 @@ export default function AtsDashboard({
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main
+          className={`flex-1 p-6 ${
+            activeNav.kind === "track" && viewMode === "kanban"
+              ? "flex flex-col overflow-hidden"
+              : "overflow-y-auto"
+          }`}
+        >
           {activeNav.kind === "vacancies" && (
             <VacanciesPanel
               db={db}
@@ -704,8 +710,14 @@ export default function AtsDashboard({
           )}
 
           {activeNav.kind === "track" && (
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div
+              className={
+                viewMode === "kanban"
+                  ? "flex min-h-0 flex-1 flex-col gap-4"
+                  : "space-y-5"
+              }
+            >
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-xl font-extrabold text-slate-900">
@@ -818,7 +830,7 @@ export default function AtsDashboard({
               )}
 
               {/* Professional Filter Popover (Rasmdagidek) */}
-              <div className="py-1">
+              <div className="shrink-0 py-1">
                 <FilterPopover
                   lang={lang}
                   availableBranches={branchesForTrack}
@@ -830,7 +842,7 @@ export default function AtsDashboard({
 
               {/* Clean Professional Kanban Cards */}
               {viewMode === "kanban" ? (
-                <div className="flex gap-4 overflow-x-auto pb-4">
+                <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2">
                   {trackConfig.stages.map((stage) => {
                     const stageApps = trackApps.filter(
                       (a) =>
@@ -844,10 +856,10 @@ export default function AtsDashboard({
                         key={stage.id}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={() => handleDropToStage(stage.id)}
-                        className="flex w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-xs"
+                        className="flex h-full w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-xs"
                       >
                         <div
-                          className="mb-3 flex items-center justify-between border-b-2 pb-2.5"
+                          className="mb-3 flex shrink-0 items-center justify-between border-b-2 pb-2.5"
                           style={{ borderColor: stage.color }}
                         >
                           <span className="text-xs font-bold text-slate-900">
@@ -858,7 +870,7 @@ export default function AtsDashboard({
                           </span>
                         </div>
 
-                        <div className="flex-1 space-y-2.5">
+                        <div className="flex-1 space-y-2.5 overflow-y-auto pr-1">
                           {stageApps.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-[11px] text-slate-400">
                               {t.emptyColumn}

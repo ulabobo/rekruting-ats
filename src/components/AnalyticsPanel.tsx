@@ -323,35 +323,104 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
 
       {/* Visual Funnel + Sources */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
-            <BarChart3 className="h-4 w-4 text-[#1b64f2]" />
-            Vizual Voronka (Funnel)
-          </h3>
-          <div className="flex flex-col items-center space-y-2.5">
-            {funnelSteps.map((step) => {
-              const pct = totalApps > 0 ? Math.round((step.count / totalApps) * 100) : 0;
-              const widthPct = totalApps > 0 ? Math.max(24, pct) : 100;
-              return (
-                <div key={step.label} className="w-full">
-                  <div className="mb-1 flex justify-between text-xs">
-                    <span className="font-semibold text-slate-700">{step.label}</span>
-                    <span className="font-bold text-slate-900">
-                      {step.count} ta ({pct}%)
-                    </span>
-                  </div>
-                  <div className="flex justify-center">
-                    <div
-                      className={`flex h-7 items-center justify-center rounded-xl bg-gradient-to-r ${step.color} text-[11px] font-bold text-white shadow-xs transition-all duration-500`}
-                      style={{ width: `${widthPct}%` }}
-                    >
-                      {step.count}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        <div className="rounded-3xl border border-slate-100 bg-gradient-to-b from-slate-50/70 to-white p-6 shadow-xs">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                <BarChart3 className="h-4 w-4 text-[#5865f2]" />
+                Rekruting Funnel (Vizual voronka)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Bosqichlar bo&apos;yicha aniq son va konversiya ko&apos;rsatkichi
+              </p>
+            </div>
+            <span className="rounded-full bg-[#eef2ff] px-3 py-1 text-[11px] font-bold text-[#5865f2]">
+              Jami: {totalApps} ta
+            </span>
           </div>
+
+          {(() => {
+            // Find biggest drop-off step index
+            let maxDropIdx = -1;
+            let maxDropVal = 0;
+            for (let i = 1; i < funnelSteps.length; i++) {
+              const drop = funnelSteps[i - 1].count - funnelSteps[i].count;
+              if (drop > maxDropVal) {
+                maxDropVal = drop;
+                maxDropIdx = i;
+              }
+            }
+            const widths = [100, 90, 80, 70, 60, 52, 44];
+            const styles = [
+              "from-[#4f46e5] to-[#6366f1] text-white shadow-md shadow-indigo-200",
+              "from-[#6366f1]/85 to-[#818cf8]/90 text-white shadow-sm",
+              "from-[#818cf8]/70 to-[#a5b4fc]/80 text-slate-900 shadow-sm",
+              "from-[#a5b4fc]/60 to-[#c7d2fe]/75 text-slate-900 shadow-sm",
+              "from-[#60a5fa]/80 to-[#3b82f6]/90 text-white shadow-sm",
+              "from-[#2dd4bf]/80 to-[#14b8a6]/90 text-white shadow-sm",
+              "from-[#10b981] to-[#059669] text-white shadow-md shadow-emerald-200",
+            ];
+
+            return (
+              <div className="space-y-2">
+                {funnelSteps.map((step, idx) => {
+                  const pct =
+                    totalApps > 0 ? Math.round((step.count / totalApps) * 100) : 0;
+                  const prevCount = idx > 0 ? funnelSteps[idx - 1].count : step.count;
+                  const stepConv =
+                    idx > 0 && prevCount > 0
+                      ? Math.round((step.count / prevCount) * 100)
+                      : 100;
+                  const widthPct = widths[idx] ?? 44;
+
+                  return (
+                    <div key={step.label} className="flex items-center gap-3">
+                      <div className="w-16 shrink-0 text-right text-[11px] font-bold text-slate-500">
+                        Step {idx + 1}
+                      </div>
+
+                      <div className="flex flex-1 justify-center">
+                        <div
+                          className={`flex h-12 flex-col items-center justify-center bg-gradient-to-b ${styles[idx]} px-3 text-center transition-all duration-500`}
+                          style={{
+                            width: `${widthPct}%`,
+                            clipPath: "polygon(0 0, 100% 0, 95% 100%, 5% 100%)",
+                            borderRadius: "10px",
+                          }}
+                        >
+                          <span className="truncate text-[10px] font-semibold opacity-90">
+                            {step.label.replace(/^\d+\.\s*/, "")}
+                          </span>
+                          <span className="text-xs font-extrabold leading-tight">
+                            {step.count} ta{" "}
+                            <span className="text-[10px] font-semibold opacity-85">
+                              ({pct}%)
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="w-28 shrink-0">
+                        {idx === maxDropIdx && maxDropVal > 0 ? (
+                          <span className="inline-block rounded-xl border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700 shadow-2xs">
+                            Eng katta yo&apos;qotish: -{maxDropVal}
+                          </span>
+                        ) : idx === funnelSteps.length - 1 ? (
+                          <span className="inline-block rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 shadow-2xs">
+                            Konversiya: {pct}%
+                          </span>
+                        ) : idx > 0 ? (
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            O&apos;tish: {stepConv}%
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">

@@ -228,22 +228,21 @@ export async function handleOnboardingCallback(
 
   // 2. Sinov kunidan keyin "Sizga ma'qulmi?"
   if (data === "onboard:sat:no") {
-    await sb
-      .from("ats_onboarding_flows")
-      .update({ step: "cancelled_timeout", updated_at: new Date().toISOString() })
-      .eq("id", flow.id);
-    await sb
-      .from("ats_applications")
-      .update({
-        status: "rejected",
-        rejection_reason: "Nomzod sinov kunidan so'ng rad etdi",
-      })
-      .eq("id", flow.application_id);
     await editOrSendSimple(
       token,
       chatId,
       msgId,
-      "Rahmat! Fikringiz uchun minnatdormiz. Kelgusida boshqa imkoniyatlarda ko'rishguncha!"
+      "Tushunarli. Iltimos, ma'qul kelmagan asosiy sababni tanlang:",
+      {
+        inline_keyboard: [
+          [{ text: "💰 Oylik maosh to'g'ri kelmadi", callback_data: "onboard:decline_reason:Oylik maosh to'g'ri kelmadi" }],
+          [{ text: "🕒 Ish grafigi / smena to'g'ri kelmadi", callback_data: "onboard:decline_reason:Ish grafigi / smena to'g'ri kelmadi" }],
+          [{ text: "📍 Manzil / filial uzoq", callback_data: "onboard:decline_reason:Manzil / filial uzoq" }],
+          [{ text: "👥 Jamoa / muhit yoqmadi", callback_data: "onboard:decline_reason:Jamoa / muhit yoqmadi" }],
+          [{ text: "💼 Ish sharoiti / vazifalar to'g'ri kelmadi", callback_data: "onboard:decline_reason:Ish sharoiti / vazifalar to'g'ri kelmadi" }],
+          [{ text: "💬 Boshqa sabab", callback_data: "onboard:decline_reason:Boshqa sabab" }],
+        ],
+      }
     );
     return true;
   }

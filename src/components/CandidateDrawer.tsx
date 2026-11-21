@@ -661,53 +661,30 @@ export default function CandidateDrawer({
               )}
             </div>
 
-            {/* Document & LMS */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                {t.documentTitle}
-              </h3>
-              {!hasPassport ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={handleUploadPassport}
-                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-amber-400 bg-amber-50 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                >
-                  <Upload className="h-4 w-4" />
-                  {t.uploadPassport}
-                </button>
-              ) : (
-                <div className="mb-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {t.passportVerified}
+            {appDocs.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {t.documentTitle}
+                </h3>
+                <div className="space-y-2 text-xs">
+                  {appDocs.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2 font-semibold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {doc.fileName}
+                      </span>
+                      <span className="text-[10px] text-emerald-600">Ko&apos;rish ↗</span>
+                    </a>
+                  ))}
                 </div>
-              )}
-
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <label className="mb-1 block text-[11px] text-slate-500">
-                    {t.hireDateLabel}
-                  </label>
-                  <input
-                    type="date"
-                    value={hireStartDate}
-                    onChange={(e) => setHireStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs"
-                  />
-                </div>
-                <button
-                  type="button"
-                  disabled={busy || application.status === "hired"}
-                  onClick={handleTransferLms}
-                  className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white ${
-                    hasPassport ? "bg-teal-600 hover:bg-teal-700" : "bg-slate-300"
-                  }`}
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  {application.status === "hired" ? t.alreadyHired : t.sendToLms}
-                </button>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right: Clean History */}

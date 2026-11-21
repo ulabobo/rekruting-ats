@@ -1446,6 +1446,80 @@ export async function changeApplicationVacancy(params: {
   });
 }
 
+export async function sendMissedCallMessage(params: {
+  applicationId: string;
+  actorId: string;
+  actorName: string;
+  lang?: Language;
+}): Promise<{ ok: boolean; error?: string }> {
+  const sb = getSupabase();
+  const { data: app } = await sb
+    .from("ats_applications")
+    .select("*")
+    .eq("id", params.applicationId)
+    .maybeSingle();
+  if (!app) return { ok: false, error: "Ariza topilmadi" };
+
+  const { data: cand } = await sb
+    .from("ats_candidates")
+    .select("*")
+    .eq("id", app.candidate_id)
+    .maybeSingle();
+  const { data: vac } = await sb
+    .from("ats_vacancies")
+    .select("*")
+    .eq("id", app.vacancy_id)
+    .maybeSingle();
+
+  if (!cand?.telegram_chat_id) {
+    return { ok: false, error: "Nomzodning Telegram Chat ID si mavjud emas" };
+  }
+
+  const { data: tpl } = await sb
+    .from("ats_message_templates")
+    .select("*")
+    .eq("track", app.track)
+    .eq("stage", "missed_call")
+    .maybeSingle();
+
+  if (tpl && tpl.enabled === false) {
+    return { ok: false, error: "Telefonni ko'tarmadi shabloni sozlamalarda o'chirilgan" };
+  }
+
+  const rawText =
+    params.lang === "ru"
+      ? tpl?.template_ru ||
+        "Здравствуйте, {ism}! Мы звонили вам по поводу вакансии {lavozim} в филиале {filial}, но не смогли дозвониться. Напишите нам в этот бот в удобное время."
+      : tpl?.template_uz ||
+        "Assalomu alaykum, {ism}! Biz sizga {filial} filialidagi {lavozim} lavozimi bo'yicha qo'ng'iroq qildik, ammo bog'lana olmadik. Qulay vaqtda shu botga yozing yoki qayta qo'ng'irog'imizni kuting.";
+
+  const text = rawText
+    .replaceAll("{ism}", cand.full_name || "")
+    .replaceAll("{lavozim}", vac?.position || "")
+    .replaceAll("{filial}", vac?.branch || "")
+    .replaceAll("{maosh}", vac?.salary_band || "");
+
+  const tgRes = await sendTelegramMessage(cand.telegram_chat_id, text);
+
+  await logAudit({
+    entityType: "application",
+    entityId: app.id,
+    actorId: params.actorId,
+    actorName: params.actorName,
+    action: "Telefonni ko'tarmadi — Telegram xabar yuborildi",
+  });
+
+  await logIntegration({
+    direction: "outbound",
+    system: "TelegramBot",
+    eventType: "MISSED_CALL_NOTIFY",
+    payloadSummary: `${cand.full_name}: ${tgRes.ok ? "Yuborildi" : tgRes.error}`,
+    status: tgRes.ok ? "success" : "failed",
+  });
+
+  return tgRes.ok ? { ok: true } : { ok: false, error: tgRes.error };
+}
+
 export async function deleteRecruiterUser(userId: string) {
   if (userId === "u-admin") throw new Error("Asosiy adminni o'chirib bo'lmaydi.");
   const sb = getSupabase();

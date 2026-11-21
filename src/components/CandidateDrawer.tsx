@@ -276,6 +276,37 @@ export default function CandidateDrawer({
     }
   };
 
+  const handleMissedCall = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/ats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send_missed_call",
+          applicationId: application.id,
+          actorId: currentUser.id,
+          actorName: currentUser.fullName,
+          lang,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.db) {
+        onUpdateDb(data.db);
+        showToast(
+          "ok",
+          lang === "ru"
+            ? "Сообщение отправлено в Telegram"
+            : "Telefonni ko'tarmaganligi haqida Telegram xabar yuborildi"
+        );
+      } else {
+        showToast("err", data.error || "Xatolik");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleChangeVacancy = async () => {
     if (isAutopilot) return;
     if (selectedVacancyId === application.vacancyId && selectedShift === initialShift) return;
@@ -358,6 +389,16 @@ export default function CandidateDrawer({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {application.status === "active" && !isAutopilot && (
+              <button
+                onClick={handleMissedCall}
+                disabled={busy}
+                className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {lang === "ru" ? "Не ответил" : "Ko'tarmadi"}
+              </button>
+            )}
             {application.status !== "reserved" && application.status !== "hired" && application.status !== "blacklist" && (
               <button
                 onClick={() => handleSetStatus("reserved")}

@@ -17,6 +17,7 @@ import {
   rejectApplication,
   saveMessageTemplate,
   savePositionProfile,
+  sendMissedCallMessage,
   setApplicationStatus,
   syncErpStaffingRows,
   transferToLms,
@@ -254,6 +255,18 @@ export async function POST(req: NextRequest) {
         actorId: body.actorId || "u-admin",
         actorName: body.actorName || "Rekruter",
       });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "send_missed_call") {
+      const res = await sendMissedCallMessage({
+        applicationId: body.applicationId,
+        actorId: body.actorId || "u-admin",
+        actorName: body.actorName || "Rekruter",
+        lang: body.lang || "uz",
+      });
+      if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
       const db = await getFullDatabase();
       return NextResponse.json({ db });
     }

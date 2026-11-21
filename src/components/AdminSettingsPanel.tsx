@@ -87,14 +87,16 @@ export default function AdminSettingsPanel({
     setTplStage(st);
     const found = db.messageTemplates.find((t) => t.track === tr && t.stage === st);
     setTplEnabled(found?.enabled ?? true);
-    setTplUz(
-      found?.templateUz ||
-        "Assalomu alaykum, {ism}! Siz {filial} filialidagi {lavozim} lavozimi bo'yicha keyingi bosqichga o'tdingiz."
-    );
-    setTplRu(
-      found?.templateRu ||
-        "Здравствуйте, {ism}! Вы перешли на следующий этап на должность {lavozim} в филиале {filial}."
-    );
+    const defaultUz =
+      st === "missed_call"
+        ? "Assalomu alaykum, {ism}! Biz sizga {filial} filialidagi {lavozim} lavozimi bo'yicha qo'ng'iroq qildik, ammo bog'lana olmadik. Qulay vaqtda shu botga yozing yoki qayta qo'ng'irog'imizni kuting."
+        : "Assalomu alaykum, {ism}! Siz {filial} filialidagi {lavozim} lavozimi bo'yicha keyingi bosqichga o'tdingiz.";
+    const defaultRu =
+      st === "missed_call"
+        ? "Здравствуйте, {ism}! Мы звонили вам по поводу вакансии {lavozim} в филиале {filial}, но не смогли дозвониться. Напишите нам в этот бот в удобное время."
+        : "Здравствуйте, {ism}! Вы перешли на следующий этап на должность {lavozim} в филиале {filial}.";
+    setTplUz(found?.templateUz || defaultUz);
+    setTplRu(found?.templateRu || defaultRu);
   };
 
   const handleSaveTemplate = async (e: React.FormEvent) => {
@@ -291,6 +293,9 @@ export default function AdminSettingsPanel({
                   ))}
                   <option value="rejected">
                     {lang === "ru" ? "Отклонен (Отказ)" : "Rad etilgan (Otkaz)"}
+                  </option>
+                  <option value="missed_call">
+                    {lang === "ru" ? "📞 Не ответил на звонок" : "📞 Telefonni ko'tarmadi"}
                   </option>
                 </select>
               </div>

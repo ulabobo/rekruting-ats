@@ -560,7 +560,7 @@ export default function AtsDashboard({
                     {db.notifications.length === 0 ? (
                       <p className="py-4 text-center text-xs text-slate-400">—</p>
                     ) : (
-                      db.notifications.map((n) => {
+                      db.notifications.slice(0, 3).map((n) => {
                         const iconBg =
                           n.type === "warning"
                             ? "bg-rose-500"

@@ -721,7 +721,12 @@ export default function AdminSettingsPanel({
           </div>
 
           {editingUser && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setEditingUser(null);
+              }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]"
+            >
               <form
                 onSubmit={handleSaveUserProfile}
                 className="w-full max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl"
@@ -1017,7 +1022,12 @@ export default function AdminSettingsPanel({
               });
             };
             return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+              <div
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setActiveFolderId(null);
+                }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]"
+              >
                 <div className="w-full max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-base font-bold text-slate-900">{current.title}</h3>
@@ -1127,7 +1137,12 @@ export default function AdminSettingsPanel({
               });
             };
             return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+              <div
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setActiveFolderId(null);
+                }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]"
+              >
                 <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-base font-bold text-slate-900">

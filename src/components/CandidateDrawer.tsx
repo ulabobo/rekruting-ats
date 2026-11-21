@@ -311,7 +311,12 @@ export default function CandidateDrawer({
   const currentIdx = trackConfig.stages.findIndex((s) => s.id === application.currentStage);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[2px]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-[2px]"
+    >
       <div className="flex h-full w-full max-w-4xl flex-col bg-[#f6f5f1] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">

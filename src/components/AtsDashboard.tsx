@@ -444,19 +444,17 @@ export default function AtsDashboard({
                 {t.analyticsNav}
               </button>
 
-              {currentUser.role === "admin" && (
-                <button
-                  onClick={() => setActiveNav({ kind: "settings" })}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                    activeNav.kind === "settings"
-                      ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
-                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
-                  }`}
-                >
-                  <Settings className="h-4 w-4" />
-                  {t.adminSettingsNav}
-                </button>
-              )}
+              <button
+                onClick={() => setActiveNav({ kind: "settings" })}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                  activeNav.kind === "settings"
+                    ? "bg-[#5865f2] text-white shadow-sm shadow-[#5865f2]/25"
+                    : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                }`}
+              >
+                <Settings className="h-4 w-4" />
+                {t.adminSettingsNav}
+              </button>
             </div>
           </div>
         </nav>
@@ -696,8 +694,13 @@ export default function AtsDashboard({
 
           {activeNav.kind === "analytics" && <AnalyticsPanel db={db} />}
 
-          {activeNav.kind === "settings" && currentUser.role === "admin" && (
-            <AdminSettingsPanel db={db} lang={lang} onUpdateDb={setDb} />
+          {activeNav.kind === "settings" && (
+            <AdminSettingsPanel
+              db={db}
+              currentUser={currentUser}
+              lang={lang}
+              onUpdateDb={setDb}
+            />
           )}
 
           {activeNav.kind === "track" && (

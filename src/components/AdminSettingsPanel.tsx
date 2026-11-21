@@ -15,10 +15,12 @@ import { DEFAULT_ONBOARDING_FOLDERS, DEFAULT_SURVEY_ITEMS } from "@/lib/telegram
 
 export default function AdminSettingsPanel({
   db,
+  currentUser,
   lang,
   onUpdateDb,
 }: {
   db: AtsDatabase;
+  currentUser: User;
   lang: Language;
   onUpdateDb: (db: AtsDatabase) => void;
 }) {
@@ -212,15 +214,17 @@ export default function AdminSettingsPanel({
             <ClipboardList className="h-3.5 w-3.5" />
             {lang === "ru" ? "Профили должностей" : "Lavozim profillari"}
           </button>
-          <button
-            onClick={() => setTab("users")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 ${
-              tab === "users" ? "bg-teal-700 text-white" : "text-slate-600"
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            {lang === "ru" ? "Рекрутеры (Доступ)" : "Rekruterlar (Dostup)"}
-          </button>
+          {currentUser.role === "admin" && (
+            <button
+              onClick={() => setTab("users")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 ${
+                tab === "users" ? "bg-teal-700 text-white" : "text-slate-600"
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              {lang === "ru" ? "Рекрутеры (Доступ)" : "Rekruterlar (Dostup)"}
+            </button>
+          )}
           <button
             onClick={() => setTab("rules")}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 ${
@@ -565,7 +569,7 @@ export default function AdminSettingsPanel({
         </div>
       )}
 
-      {tab === "users" && (
+      {tab === "users" && currentUser.role === "admin" && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           <form
             onSubmit={handleCreateUser}

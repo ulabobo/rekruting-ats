@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bot, ClipboardList, Plus, Shield, Trash2, Users, X } from "lucide-react";
-import { AtsDatabase, Language, TrackType, User } from "@/types/ats";
+import { Bot, ClipboardList, Folder, ImagePlus, Plus, Shield, Trash2, Users, X } from "lucide-react";
+import {
+  AtsDatabase,
+  Language,
+  OnboardingFolderItem,
+  SurveyQuestionItem,
+  TrackType,
+  User,
+} from "@/types/ats";
 import { TRACK_CONFIGS, getTrackTitle } from "@/lib/stages";
+import { DEFAULT_ONBOARDING_FOLDERS, DEFAULT_SURVEY_ITEMS } from "@/lib/telegram";
 
 export default function AdminSettingsPanel({
   db,
@@ -56,6 +64,9 @@ export default function AdminSettingsPanel({
   ]);
   const [uBranches, setUBranches] = useState<string[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [activeFolderId, setActiveFolderId] = useState<
+    "welcome_book" | "dress_code" | "work_hours" | "store_conduct" | "survey" | null
+  >(null);
 
   const allBranches = Array.from(
     new Set([
@@ -932,62 +943,283 @@ export default function AdminSettingsPanel({
               />
             </div>
 
-            <div className="col-span-2">
-              <label className="mb-1 block font-semibold">
+            <div className="col-span-2 pt-2">
+              <p className="mb-2 font-bold text-slate-800">
                 {lang === "ru"
-                  ? "Вопросы опроса после тест-дня (каждый с новой строки)"
-                  : "Sinov kunidan keyingi so'rovnoma savollari (har birini yangi qatordan yozing)"}
-              </label>
-              <textarea
-                rows={4}
-                value={(
-                  db.settings.testDaySurveyQuestions || [
-                    "1. Bugungi sinov kunida jamoadagi muhit va hamkasblarning munosabati sizga qanday taassurot qoldirdi?",
-                    "2. Lavozim vazifalari va ish jarayoni sizga tushunarli bo'ldimi?",
-                    "3. Ish joyi sharoitlari (tozalik, qulaylik, tartib) haqida fikringiz qanday?",
-                  ]
-                ).join("\n")}
-                onChange={(e) =>
-                  onUpdateDb({
-                    ...db,
-                    settings: {
-                      ...db.settings,
-                      testDaySurveyQuestions: e.target.value
-                        .split("\n")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    },
-                  })
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2"
-              />
-            </div>
+                  ? "Материалы адаптации и опрос (нажмите на папку)"
+                  : "Standartlar, Welcome Book va So'rovnoma (batafsil uchun papkani bosing)"}
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {(db.settings.onboardingFolders && db.settings.onboardingFolders.length > 0
+                  ? db.settings.onboardingFolders
+                  : DEFAULT_ONBOARDING_FOLDERS
+                ).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setActiveFolderId(f.id)}
+                    className="group relative flex flex-col items-start rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3.5 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-md"
+                  >
+                    <div className="mb-2 flex w-full items-center justify-between">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                        <Folder className="h-4 w-4" />
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        {f.images?.length || 0} rasm
+                      </span>
+                    </div>
+                    <p className="font-bold text-slate-900">{f.title}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] text-slate-500">
+                      {f.description}
+                    </p>
+                  </button>
+                ))}
 
-            <div className="col-span-2">
-              <label className="mb-1 block font-semibold">
-                {lang === "ru"
-                  ? "Mini Welcome Book и стандарты компании (отправляется с оффером)"
-                  : "Mini Welcome Book va Kompaniya standartlari (ish taklifi bilan yuboriladi)"}
-              </label>
-              <textarea
-                rows={5}
-                value={
-                  db.settings.welcomeBookText ??
-                  "📖 Mini Welcome Book va Kompaniya Standartlari\n\n• Ish vaqti: Smenadan 15 daqiqa oldin do'konda bo'lish shart.\n• Dress-kod: Kompaniya standartiga mos toza va tartibli kiyinish.\n• Mijozlarga xizmat: Har bir mijozni tabassum va xushmuomalalik bilan kutib olish.\n• O'qitish (LMS): Birinchi kunda do'kon menejeri sizga o'quv materiallarini ochib beradi."
-                }
-                onChange={(e) =>
-                  onUpdateDb({
-                    ...db,
-                    settings: {
-                      ...db.settings,
-                      welcomeBookText: e.target.value,
-                    },
-                  })
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2"
-              />
+                <button
+                  type="button"
+                  onClick={() => setActiveFolderId("survey")}
+                  className="group relative flex flex-col items-start rounded-2xl border border-indigo-200 bg-gradient-to-b from-indigo-50/60 to-white p-3.5 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md"
+                >
+                  <div className="mb-2 flex w-full items-center justify-between">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
+                      <ClipboardList className="h-4 w-4" />
+                    </span>
+                    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                      {(db.settings.testDaySurveyItems && db.settings.testDaySurveyItems.length > 0
+                        ? db.settings.testDaySurveyItems
+                        : DEFAULT_SURVEY_ITEMS
+                      ).length}{" "}
+                      savol
+                    </span>
+                  </div>
+                  <p className="font-bold text-slate-900">Sinov kuni so'rovnomasi</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-slate-500">
+                    1–5 balli baholash va ochiq fikr savollari
+                  </p>
+                </button>
+              </div>
             </div>
           </div>
+
+          {activeFolderId && activeFolderId !== "survey" && (() => {
+            const folders =
+              db.settings.onboardingFolders && db.settings.onboardingFolders.length > 0
+                ? db.settings.onboardingFolders
+                : DEFAULT_ONBOARDING_FOLDERS;
+            const current = folders.find((f) => f.id === activeFolderId)!;
+            const updateFolder = (patch: Partial<OnboardingFolderItem>) => {
+              const next = folders.map((f) =>
+                f.id === activeFolderId ? { ...f, ...patch } : f
+              );
+              onUpdateDb({
+                ...db,
+                settings: { ...db.settings, onboardingFolders: next },
+              });
+            };
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+                <div className="w-full max-w-lg space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-base font-bold text-slate-900">{current.title}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFolderId(null)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">Sarlavha</label>
+                    <input
+                      value={current.title}
+                      onChange={(e) => updateFolder({ title: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-semibold text-slate-600">
+                      Matn / Qoidalar (botda yuboriladi)
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={current.description}
+                      onChange={(e) => updateFolder({ description: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="font-semibold text-slate-600">
+                        Namuna rasmlar ({current.images?.length || 0})
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 hover:bg-blue-100">
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        Rasm yuklash
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []);
+                            const dataUrls = await Promise.all(
+                              files.map(
+                                (file) =>
+                                  new Promise<string>((resolve) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve(String(reader.result || ""));
+                                    reader.readAsDataURL(file);
+                                  })
+                              )
+                            );
+                            updateFolder({
+                              images: [...(current.images || []), ...dataUrls.filter(Boolean)],
+                            });
+                          }}
+                        />
+                      </label>
+                    </div>
+                    {current.images && current.images.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {current.images.map((img, i) => (
+                          <div key={i} className="group relative overflow-hidden rounded-xl border border-slate-200">
+                            <img src={img} alt="standart" className="h-24 w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateFolder({
+                                  images: current.images.filter((_, idx) => idx !== i),
+                                })
+                              }
+                              className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-90 hover:opacity-100"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveFolderId(null)}
+                      className="rounded-xl bg-blue-600 px-5 py-2 font-bold text-white hover:bg-blue-700"
+                    >
+                      Tayyor (Saqlash tugmasini bosing)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {activeFolderId === "survey" && (() => {
+            const items =
+              db.settings.testDaySurveyItems && db.settings.testDaySurveyItems.length > 0
+                ? db.settings.testDaySurveyItems
+                : DEFAULT_SURVEY_ITEMS;
+            const updateItems = (next: SurveyQuestionItem[]) => {
+              onUpdateDb({
+                ...db,
+                settings: { ...db.settings, testDaySurveyItems: next },
+              });
+            };
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+                <div className="max-h-[85vh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-xs shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Sinov kuni so'rovnomasi savollari
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFolderId(null)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {items.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-700">Savol #{idx + 1}</span>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={item.type}
+                              onChange={(e) =>
+                                updateItems(
+                                  items.map((x, i) =>
+                                    i === idx
+                                      ? { ...x, type: e.target.value as "rating" | "text" }
+                                      : x
+                                  )
+                                )
+                              }
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold"
+                            >
+                              <option value="rating">⭐️ 1–5 ball (Reyting)</option>
+                              <option value="text">✍️ Ochiq fikr (Matn)</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => updateItems(items.filter((_, i) => i !== idx))}
+                              className="rounded-lg p-1 text-rose-500 hover:bg-rose-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          value={item.question}
+                          onChange={(e) =>
+                            updateItems(
+                              items.map((x, i) =>
+                                i === idx ? { ...x, question: e.target.value } : x
+                              )
+                            )
+                          }
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateItems([
+                          ...items,
+                          {
+                            id: `q-${Date.now()}`,
+                            question: `${items.length + 1}. Yangi savol...`,
+                            type: "rating",
+                          },
+                        ])
+                      }
+                      className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-100"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Savol qo'shish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFolderId(null)}
+                      className="rounded-xl bg-blue-600 px-5 py-2 font-bold text-white hover:bg-blue-700"
+                    >
+                      Tayyor
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <button
             onClick={async () => {
               const res = await fetch("/api/ats", {

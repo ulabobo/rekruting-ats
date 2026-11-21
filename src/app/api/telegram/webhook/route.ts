@@ -401,13 +401,41 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      if (data.startsWith("vacancy_closed:")) {
+        const [, decision, appId] = data.split(":");
+        if (decision === "keep" && appId) {
+          await sb
+            .from("ats_applications")
+            .update({ status: "reserved" })
+            .eq("id", appId);
+          await editOrSend(
+            token,
+            chatId,
+            msgId,
+            "✅ Rahmat! Anketangiz kadrlar zaxiramizda saqlandi. Yangi imkoniyatlar ochilishi bilan siz bilan bog'lanamiz."
+          );
+        } else if (decision === "drop" && appId) {
+          await sb
+            .from("ats_applications")
+            .update({
+              status: "rejected",
+              rejection_reason: "Vakansiya yopildi — nomzod zaxirada qolishni rad etdi",
+            })
+            .eq("id", appId);
+          await editOrSend(
+            token,
+            chatId,
+            msgId,
+            "Tushunarli. Qiziqish bildirganingiz uchun katta rahmat! Kelgusida omad tilaymiz."
+          );
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       if (data === "back:reg") {
-        const { data: openVacs } = await sb
-          .from("ats_vacancies")
-          .select("region")
-          .in("status", ["open", "accepted"]);
+        const { data: allVacs } = await sb.from("ats_vacancies").select("region");
         const regions = Array.from(
-          new Set((openVacs || []).map((v) => v.region).filter(Boolean))
+          new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
         ) as string[];
         await editOrSend(
           token,
@@ -430,10 +458,15 @@ export async function POST(req: NextRequest) {
         const { data: vacs } = await sb
           .from("ats_vacancies")
           .select("*")
-          .in("status", ["open", "accepted"])
           .eq("region", region);
 
-        const branches = Array.from(new Set((vacs || []).map((v) => v.branch)));
+        const baseBranches =
+          region === "Toshkent shahri"
+            ? ["Aura-1", "Aura-2", "Aura-3", "Aura-4", "Bosh ofis", "Toshkent ombor"]
+            : [];
+        const branches = Array.from(
+          new Set([...baseBranches, ...(vacs || []).map((v) => v.branch).filter(Boolean)])
+        );
         const city = vacs?.[0]?.city || region;
 
         await saveSession(chatId, {
@@ -459,7 +492,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 2. Filial tanlandi -> Lavozimlar
+      // 2. Filial tanlandi -> Ochiq vakansiyalar + Passiv zaxira lavozimlari (rahbar lavozimlarisiz)
       if (data.startsWith("branch:")) {
         const branch = data.replace("branch:", "");
         const st = (await getSession(chatId)) || {
@@ -471,11 +504,35 @@ export async function POST(req: NextRequest) {
         st.answers.branch = branch;
         await saveSession(chatId, st);
 
-        const { data: vacs } = await sb
+        const { data: openVacs } = await sb
           .from("ats_vacancies")
           .select("*")
           .in("status", ["open", "accepted"])
           .eq("branch", branch);
+
+        const openPosLower = new Set(
+          (openVacs || []).map((v) => v.position.trim().toLowerCase())
+        );
+
+        const passiveCatalog = branch.toLowerCase().includes("bosh ofis")
+          ? [
+              "HR mutaxassisi",
+              "Buxgalter",
+              "Marketing mutaxassisi",
+              "Call-markaz operatori",
+              "IT mutaxassisi",
+              "Ofis menejeri",
+            ]
+          : ["Sotuvchi-konsultant", "Kassir", "Omborchi", "Tozalik xodimi"];
+
+        const passiveButtons = passiveCatalog
+          .filter((p) => !openPosLower.has(p.toLowerCase()))
+          .map((p) => [
+            {
+              text: `📋 ${p} (Zaxira uchun ariza)`,
+              callback_data: `passive:${p}`,
+            },
+          ]);
 
         await editOrSend(
           token,
@@ -484,13 +541,50 @@ export async function POST(req: NextRequest) {
           `🏢 <b>${branch}</b> — Lavozimni tanlang:`,
           {
             inline_keyboard: [
-              ...(vacs || []).map((v) => [
+              ...(openVacs || []).map((v) => [
                 {
                   text: `💼 ${v.position} (${v.headcount} ta o'rin)`,
                   callback_data: `vac:${v.id}`,
                 },
               ]),
+              ...passiveButtons,
               [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
+            ],
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data.startsWith("passive:")) {
+        const position = data.replace("passive:", "");
+        const st = (await getSession(chatId)) || {
+          mode: "reserve",
+          step: "idle",
+          answers: {},
+        };
+        st.mode = "reserve";
+        st.position = position;
+        st.answers.position = position;
+        await saveSession(chatId, st);
+
+        const { data: setRow } = await sb
+          .from("ats_settings")
+          .select("data")
+          .eq("id", "default")
+          .maybeSingle();
+        const shifts: string[] =
+          setRow?.data?.shifts && setRow.data.shifts.length > 0 ? setRow.data.shifts : SHIFTS;
+
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          `📋 <b>${position}</b> (Zaxira arizasi — ${st.branch || "Filial"})\n\n` +
+            `Hozirda ushbu lavozim bo'yicha ochiq o'rin bo'lmasa ham, anketangizni qoldirishingiz mumkin!\n\n🕒 Qulay smenani tanlang:`,
+          {
+            inline_keyboard: [
+              ...shifts.map((sh) => [{ text: sh, callback_data: `shift:${sh}` }]),
+              [{ text: "⬅️ Orqaga", callback_data: `branch:${st.branch || ""}` }],
             ],
           }
         );
@@ -722,12 +816,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const { data: openVacs } = await sb
-        .from("ats_vacancies")
-        .select("region")
-        .in("status", ["open", "accepted"]);
+      const { data: allVacs } = await sb.from("ats_vacancies").select("region");
       const regions = Array.from(
-        new Set((openVacs || []).map((v) => v.region).filter(Boolean))
+        new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
       ) as string[];
 
       await tgCall(token, "sendMessage", {

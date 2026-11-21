@@ -224,6 +224,19 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export interface SurveyQuestionItem {
+  id: string;
+  question: string;
+  type: "rating" | "text";
+}
+
+export interface OnboardingFolderItem {
+  id: "welcome_book" | "dress_code" | "work_hours" | "store_conduct";
+  title: string;
+  description: string;
+  images: string[]; // data URLs or image URLs
+}
+
 export interface SystemSettings {
   internalCandidateMinCategory: string;
   internalCandidateMinTenureMonths: number;
@@ -235,7 +248,9 @@ export interface SystemSettings {
   offerTimerOfficeDays: number;
   shifts?: string[];
   testDaySurveyQuestions?: string[];
+  testDaySurveyItems?: SurveyQuestionItem[];
   welcomeBookText?: string;
+  onboardingFolders?: OnboardingFolderItem[];
   googleSpreadsheetId?: string;
   googleSpreadsheetUrl?: string;
   googleLastSyncAt?: string;

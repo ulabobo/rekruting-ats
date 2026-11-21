@@ -76,6 +76,16 @@ export default function CandidateDrawer({
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [selectedVacancyId, setSelectedVacancyId] = useState(application.vacancyId);
+  const initialShift =
+    candidate.questionnaireData?.shift ||
+    vacancy.shift ||
+    "To'liq kun (5/2)";
+  const [selectedShift, setSelectedShift] = useState(initialShift);
+  const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(application.currentStage);
+  const availableShifts =
+    db.settings.shifts && db.settings.shifts.length > 0
+      ? db.settings.shifts
+      : ["1-smena (09:00–18:00)", "2-smena (14:00–23:00)", "2/2 smena", "To'liq kun (5/2)"];
 
   const showToast = (type: "ok" | "err", text: string) => {
     setToast({ type, text });
@@ -267,7 +277,8 @@ export default function CandidateDrawer({
   };
 
   const handleChangeVacancy = async () => {
-    if (!selectedVacancyId || selectedVacancyId === application.vacancyId) return;
+    if (isAutopilot) return;
+    if (selectedVacancyId === application.vacancyId && selectedShift === initialShift) return;
     setBusy(true);
     try {
       const res = await fetch("/api/ats", {
@@ -277,6 +288,7 @@ export default function CandidateDrawer({
           action: "change_vacancy",
           applicationId: application.id,
           newVacancyId: selectedVacancyId,
+          newShift: selectedShift,
           actorId: currentUser.id,
           actorName: currentUser.fullName,
         }),
@@ -479,35 +491,54 @@ export default function CandidateDrawer({
                   </div>
                 </div>
                 <div className="col-span-2 rounded-xl border border-slate-100 bg-slate-50/70 p-2.5">
-                  <p className="mb-1 text-[10px] font-semibold text-slate-500">
-                    {lang === "ru" ? "Вакансия / Сменить позицию" : "Vakansiya / Lavozimni o'zgartirish"}
+                  <p className="mb-1.5 text-[10px] font-semibold text-slate-500">
+                    {lang === "ru"
+                      ? "Вакансия / Филиал / Смена (до автопилота)"
+                      : "Vakansiya / Filial / Smena (avtopilotgacha o'zgartirish mumkin)"}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <select
+                      disabled={isAutopilot}
                       value={selectedVacancyId}
                       onChange={(e) => setSelectedVacancyId(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       {db.vacancies
-                        .filter((v) => v.status === "open" || v.id === application.vacancyId)
+                        .filter((v) => v.status === "open" || v.status === "accepted" || v.id === application.vacancyId)
                         .map((v) => (
                           <option key={v.id} value={v.id}>
                             {v.position} — {v.branch}
                           </option>
                         ))}
                     </select>
-                    {selectedVacancyId !== application.vacancyId && (
+                    <select
+                      disabled={isAutopilot}
+                      value={selectedShift}
+                      onChange={(e) => setSelectedShift(e.target.value)}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {!availableShifts.includes(selectedShift) && (
+                        <option value={selectedShift}>{selectedShift}</option>
+                      )}
+                      {availableShifts.map((sh) => (
+                        <option key={sh} value={sh}>
+                          {sh}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {!isAutopilot &&
+                    (selectedVacancyId !== application.vacancyId || selectedShift !== initialShift) && (
                       <button
                         type="button"
                         disabled={busy}
                         onClick={handleChangeVacancy}
-                        className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                        className="mt-2 flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                       >
                         <ArrowRightLeft className="h-3.5 w-3.5" />
-                        {lang === "ru" ? "Изменить" : "O'zgartirish"}
+                        {lang === "ru" ? "Сохранить изменения" : "O'zgarishlarni saqlash"}
                       </button>
                     )}
-                  </div>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400">{t.branchLabel}</p>

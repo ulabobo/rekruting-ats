@@ -886,6 +886,10 @@ export async function transferToLms(params: {
         status: nextFilled >= vac.headcount ? "closed" : "open",
       })
       .eq("id", vac.id);
+
+    if (nextFilled >= vac.headcount) {
+      await notifyApplicantsVacancyClosed(vac.id, app.id);
+    }
   }
 
   await logAudit({
@@ -1299,25 +1303,107 @@ export async function setApplicationStatus(params: {
   });
 }
 
-export async function changeApplicationVacancy(params: {
-  applicationId: string;
-  newVacancyId: string;
+export async function notifyApplicantsVacancyClosed(
+  vacancyId: string,
+  excludeApplicationId?: string
+) {
+  const sb = getSupabase();
+  const { data: vac } = await sb
+    .from("ats_vacancies")
+    .select("*")
+    .eq("id", vacancyId)
+    .maybeSingle();
+  if (!vac) return;
+
+  const { data: apps } = await sb
+    .from("ats_applications")
+    .select("*")
+    .eq("vacancy_id", vacancyId)
+    .in("status", ["active", "offered"]);
+
+  for (const a of apps || []) {
+    if (excludeApplicationId && a.id === excludeApplicationId) continue;
+    const { data: cand } = await sb
+      .from("ats_candidates")
+      .select("full_name, telegram_chat_id")
+      .eq("id", a.candidate_id)
+      .maybeSingle();
+
+    if (cand?.telegram_chat_id) {
+      await sendTelegramMessage(
+        cand.telegram_chat_id,
+        `Hurmatli <b>${cand.full_name}</b>!\n\n` +
+          `<b>${vac.branch}</b> filialidagi <b>${vac.position}</b> lavozimi uchun tanlov yakunlandi va ushbu vakansiya yopildi. Qiziqish bildirganingiz uchun katta rahmat!\n\n` +
+          `Bizda boshqa filiallar va yangi imkoniyatlar bo'lishi mumkin. Kelgusida siz bilan bog'lanishimiz uchun anketangiz zaxirada saqlanishiga rozimisiz?`,
+        {
+          inline_keyboard: [
+            [{ text: "✅ Ha, roziman (Saqlansin)", callback_data: `vacancy_closed:keep:${a.id}` }],
+            [{ text: "❌ Yo'q, kerak emas", callback_data: `vacancy_closed:drop:${a.id}` }],
+          ],
+        }
+      );
+    }
+  }
+}
+
+export async function closeVacancy(params: {
+  vacancyId: string;
   actorId: string;
   actorName: string;
 }) {
   const sb = getSupabase();
+  const { data: vac } = await sb
+    .from("ats_vacancies")
+    .select("*")
+    .eq("id", params.vacancyId)
+    .maybeSingle();
+  if (!vac) throw new Error("Vakansiya topilmadi");
+
+  await sb
+    .from("ats_vacancies")
+    .update({
+      status: "closed",
+      filled_count: vac.headcount,
+    })
+    .eq("id", vac.id);
+
+  await logAudit({
+    entityType: "vacancy",
+    entityId: vac.id,
+    actorId: params.actorId,
+    actorName: params.actorName,
+    action: `Vakansiya yopildi (${vac.branch} — ${vac.position})`,
+    newValue: "closed",
+  });
+
+  await notifyApplicantsVacancyClosed(vac.id);
+}
+
+export async function changeApplicationVacancy(params: {
+  applicationId: string;
+  newVacancyId: string;
+  newShift?: string;
+  actorId: string;
+  actorName: string;
+}) {
+  const sb = getSupabase();
+  const { data: app } = await sb
+    .from("ats_applications")
+    .select("vacancy_id, candidate_id, current_stage")
+    .eq("id", params.applicationId)
+    .maybeSingle();
+
+  if (!app) throw new Error("Ariza topilmadi");
+  if (["test_kuni", "offer", "hujjat_lms"].includes(app.current_stage)) {
+    throw new Error("Nomzod bot avtopilotiga o'tgan — filial va smenani o'zgartirib bo'lmaydi!");
+  }
+
   const { data: newVac } = await sb
     .from("ats_vacancies")
     .select("*")
     .eq("id", params.newVacancyId)
     .maybeSingle();
   if (!newVac) throw new Error("Yangi vakansiya topilmadi");
-
-  const { data: app } = await sb
-    .from("ats_applications")
-    .select("vacancy_id")
-    .eq("id", params.applicationId)
-    .maybeSingle();
 
   const { data: oldVac } = app?.vacancy_id
     ? await sb.from("ats_vacancies").select("position, branch").eq("id", app.vacancy_id).maybeSingle()
@@ -1331,12 +1417,32 @@ export async function changeApplicationVacancy(params: {
     })
     .eq("id", params.applicationId);
 
+  if (params.newShift && app.candidate_id) {
+    const { data: cand } = await sb
+      .from("ats_candidates")
+      .select("questionnaire_data")
+      .eq("id", app.candidate_id)
+      .maybeSingle();
+    const qData = (cand?.questionnaire_data as Record<string, string>) || {};
+    await sb
+      .from("ats_candidates")
+      .update({
+        questionnaire_data: {
+          ...qData,
+          shift: params.newShift,
+          branch: newVac.branch,
+          position: newVac.position,
+        },
+      })
+      .eq("id", app.candidate_id);
+  }
+
   await logAudit({
     entityType: "application",
     entityId: params.applicationId,
     actorId: params.actorId,
     actorName: params.actorName,
-    action: `Lavozim o'zgartirildi: ${oldVac?.position || "?"} (${oldVac?.branch || ""}) → ${newVac.position} (${newVac.branch})`,
+    action: `Lavozim/Filial/Smena o'zgartirildi: ${oldVac?.position || "?"} (${oldVac?.branch || ""}) → ${newVac.position} (${newVac.branch})${params.newShift ? `, Smena: ${params.newShift}` : ""}`,
   });
 }
 

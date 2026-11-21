@@ -1,10 +1,13 @@
 import { addDocument, getSupabase } from "@/lib/supabase-db";
 import { appendHujjatlarRowToSheets } from "@/lib/google-sheets";
 import {
-  DEFAULT_TEST_DAY_SURVEY,
+  DEFAULT_ONBOARDING_FOLDERS,
+  DEFAULT_SURVEY_ITEMS,
   DEFAULT_WELCOME_BOOK_TEXT,
   sendTelegramMessage,
+  sendTelegramPhoto,
 } from "@/lib/telegram";
+import { OnboardingFolderItem, SurveyQuestionItem } from "@/types/ats";
 
 async function editOrSendSimple(
   token: string,
@@ -95,6 +98,83 @@ export async function handleOnboardingCallback(
     return true;
   }
 
+  // 1.5 Sinov kuni so'rovnomasi (1-5 ball tugmalari)
+  if (data.startsWith("onboard:rate:")) {
+    const parts = data.split(":");
+    const qIdx = Number(parts[2] || 0);
+    const score = parts[3] || "5";
+
+    const { data: setRow } = await sb
+      .from("ats_settings")
+      .select("data")
+      .eq("id", "default")
+      .maybeSingle();
+    const customItems = setRow?.data?.testDaySurveyItems as SurveyQuestionItem[] | undefined;
+    const surveyItems: SurveyQuestionItem[] =
+      customItems && customItems.length > 0 ? customItems : DEFAULT_SURVEY_ITEMS;
+
+    const currentQ = surveyItems[qIdx];
+    const prevAnswers: { question: string; answer: string }[] = Array.isArray(flow.survey_answers)
+      ? flow.survey_answers
+      : [];
+    const nextAnswers = [
+      ...prevAnswers,
+      { question: currentQ?.question || `Savol ${qIdx + 1}`, answer: `${score} ball` },
+    ];
+
+    await editOrSendSimple(
+      token,
+      chatId,
+      msgId,
+      `${currentQ?.question || ""}\n\n✅ Tanlangan baho: <b>${score} ⭐️</b>`
+    );
+
+    if (qIdx + 1 < surveyItems.length) {
+      const nextQ = surveyItems[qIdx + 1];
+      await sb
+        .from("ats_onboarding_flows")
+        .update({
+          survey_index: qIdx + 1,
+          survey_answers: nextAnswers,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", flow.id);
+
+      const ratingMarkup =
+        nextQ.type === "rating"
+          ? {
+              inline_keyboard: [
+                [1, 2, 3, 4, 5].map((n) => ({
+                  text: `${n} ⭐️`,
+                  callback_data: `onboard:rate:${qIdx + 1}:${n}`,
+                })),
+              ],
+            }
+          : undefined;
+      await sendTelegramMessage(String(chatId), `<b>${nextQ.question}</b>`, ratingMarkup);
+    } else {
+      await sb
+        .from("ats_onboarding_flows")
+        .update({
+          step: "awaiting_test_satisfaction",
+          survey_answers: nextAnswers,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", flow.id);
+      await sendTelegramMessage(
+        String(chatId),
+        `✅ So'rovnoma uchun rahmat!\n\nSinov kunidan so'ng ish sharoitlari va jamoa sizga ma'qul keldimi?`,
+        {
+          inline_keyboard: [
+            [{ text: "✅ Ha, ma'qul", callback_data: "onboard:sat:yes" }],
+            [{ text: "❌ Yo'q, ma'qul emas", callback_data: "onboard:sat:no" }],
+          ],
+        }
+      );
+    }
+    return true;
+  }
+
   // 2. Sinov kunidan keyin "Sizga ma'qulmi?"
   if (data === "onboard:sat:no") {
     await sb
@@ -123,9 +203,9 @@ export async function handleOnboardingCallback(
       .select("data")
       .eq("id", "default")
       .maybeSingle();
-    const welcomeText =
-      (setRow?.data?.welcomeBookText as string | undefined)?.trim() ||
-      DEFAULT_WELCOME_BOOK_TEXT;
+    const customFolders = setRow?.data?.onboardingFolders as OnboardingFolderItem[] | undefined;
+    const folders: OnboardingFolderItem[] =
+      customFolders && customFolders.length > 0 ? customFolders : DEFAULT_ONBOARDING_FOLDERS;
 
     // Avtomatik "Ish taklifi" (offer) bosqichiga o'tkazish
     await sb
@@ -152,15 +232,32 @@ export async function handleOnboardingCallback(
       `🏢 Do'kon / Filial: <b>${vac?.branch || "—"}</b>\n` +
       `🕒 Smena: <b>${flow.shift || vac?.shift || "—"}</b>\n` +
       `💰 Oylik maosh: <b>${vac?.salary_band || "—"}</b>\n\n` +
-      `${welcomeText}\n\n` +
-      `Tanishib chiqdingizmi? Shartlar sizga ma'qulmi?`;
+      `Quyida kompaniyamiz standartlari va Welcome Book bilan tanishing 👇`;
 
-    await editOrSendSimple(token, chatId, msgId, offerMsg, {
-      inline_keyboard: [
-        [{ text: "✅ Tanishib chiqdim, menga ma'qul", callback_data: "onboard:welcome:yes" }],
-        [{ text: "❌ Rad etaman", callback_data: "onboard:welcome:no" }],
-      ],
-    });
+    await editOrSendSimple(token, chatId, msgId, offerMsg);
+
+    for (const folder of folders) {
+      const caption = `📌 <b>${folder.title}</b>\n\n${folder.description}`;
+      if (folder.images && folder.images.length > 0) {
+        await sendTelegramPhoto(String(chatId), folder.images[0], caption);
+        for (let i = 1; i < folder.images.length; i++) {
+          await sendTelegramPhoto(String(chatId), folder.images[i]);
+        }
+      } else {
+        await sendTelegramMessage(String(chatId), caption);
+      }
+    }
+
+    await sendTelegramMessage(
+      String(chatId),
+      `Barcha standartlar va shartlar bilan tanishib chiqdingizmi? Sizga ma'qulmi?`,
+      {
+        inline_keyboard: [
+          [{ text: "✅ Tanishib chiqdim, menga ma'qul", callback_data: "onboard:welcome:yes" }],
+          [{ text: "❌ Rad etaman", callback_data: "onboard:welcome:no" }],
+        ],
+      }
+    );
     return true;
   }
 
@@ -264,9 +361,9 @@ export async function handleOnboardingMessage(
       .select("data")
       .eq("id", "default")
       .maybeSingle();
-    const customQs = setRow?.data?.testDaySurveyQuestions as string[] | undefined;
-    const questions: string[] =
-      customQs && customQs.length > 0 ? customQs : DEFAULT_TEST_DAY_SURVEY;
+    const customItems = setRow?.data?.testDaySurveyItems as SurveyQuestionItem[] | undefined;
+    const surveyItems: SurveyQuestionItem[] =
+      customItems && customItems.length > 0 ? customItems : DEFAULT_SURVEY_ITEMS;
 
     const currentIdx = Number(flow.survey_index || 0);
     const prevAnswers: { question: string; answer: string }[] = Array.isArray(flow.survey_answers)
@@ -274,10 +371,11 @@ export async function handleOnboardingMessage(
       : [];
     const nextAnswers = [
       ...prevAnswers,
-      { question: questions[currentIdx] || `Savol ${currentIdx + 1}`, answer: text },
+      { question: surveyItems[currentIdx]?.question || `Savol ${currentIdx + 1}`, answer: text },
     ];
 
-    if (currentIdx + 1 < questions.length) {
+    if (currentIdx + 1 < surveyItems.length) {
+      const nextQ = surveyItems[currentIdx + 1];
       await sb
         .from("ats_onboarding_flows")
         .update({
@@ -286,7 +384,18 @@ export async function handleOnboardingMessage(
           updated_at: new Date().toISOString(),
         })
         .eq("id", flow.id);
-      await sendTelegramMessage(String(chatId), `<b>${questions[currentIdx + 1]}</b>`);
+      const ratingMarkup =
+        nextQ.type === "rating"
+          ? {
+              inline_keyboard: [
+                [1, 2, 3, 4, 5].map((n) => ({
+                  text: `${n} ⭐️`,
+                  callback_data: `onboard:rate:${currentIdx + 1}:${n}`,
+                })),
+              ],
+            }
+          : undefined;
+      await sendTelegramMessage(String(chatId), `<b>${nextQ.question}</b>`, ratingMarkup);
     } else {
       await sb
         .from("ats_onboarding_flows")

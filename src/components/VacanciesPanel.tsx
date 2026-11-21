@@ -160,6 +160,35 @@ export default function VacanciesPanel({
     }
   };
 
+  const handleCloseVacancy = async (vacancyId: string) => {
+    if (
+      !window.confirm(
+        lang === "ru"
+          ? "Закрыть вакансию и уведомить остальных кандидатов в Telegram?"
+          : "Vakansiyani yopib, qolgan nomzodlarga Telegram orqali zaxira so'rovi yuborilsinmi?"
+      )
+    ) {
+      return;
+    }
+    setAcceptingId(vacancyId);
+    try {
+      const res = await fetch("/api/ats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "close_vacancy",
+          vacancyId,
+          actorId: currentUser.id,
+          actorName: currentUser.fullName,
+        }),
+      });
+      const data = await res.json();
+      if (data.db) onUpdateDb(data.db);
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     if (status === "accepted") return lang === "ru" ? "Принята" : "Qabul qilindi";
     if (status === "open") return lang === "ru" ? "Новая" : "Yangi";
@@ -491,27 +520,40 @@ export default function VacanciesPanel({
                     {lang === "ru" ? "Откликов:" : "Nomzodlar:"} <b>{appsCount}</b>
                   </p>
 
-                  {v.status === "open" ? (
-                    <button
-                      type="button"
-                      disabled={acceptingId === v.id}
-                      onClick={() => handleAcceptVacancy(v.id)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-extrabold text-slate-900 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      {acceptingId === v.id
-                        ? "..."
-                        : lang === "ru"
-                        ? "Принять"
-                        : "Qabul qilish"}
-                    </button>
-                  ) : v.status === "accepted" ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {lang === "ru" ? "Принята" : "Qabul qilindi"}
-                      {recruiter ? ` (${recruiter.fullName.split(" ")[0]})` : ""}
-                    </span>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {v.status === "open" ? (
+                      <button
+                        type="button"
+                        disabled={acceptingId === v.id}
+                        onClick={() => handleAcceptVacancy(v.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-extrabold text-slate-900 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        {acceptingId === v.id
+                          ? "..."
+                          : lang === "ru"
+                          ? "Принять"
+                          : "Qabul qilish"}
+                      </button>
+                    ) : v.status === "accepted" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {lang === "ru" ? "Принята" : "Qabul qilindi"}
+                        {recruiter ? ` (${recruiter.fullName.split(" ")[0]})` : ""}
+                      </span>
+                    ) : null}
+
+                    {(v.status === "open" || v.status === "accepted") && (
+                      <button
+                        type="button"
+                        disabled={acceptingId === v.id}
+                        onClick={() => handleCloseVacancy(v.id)}
+                        className="inline-flex items-center gap-1 rounded-full bg-slate-900/60 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-xs transition hover:bg-slate-900/80 disabled:opacity-50"
+                      >
+                        {lang === "ru" ? "Закрыть" : "Yopish"}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pointer-events-none absolute -bottom-5 -right-5 flex h-28 w-28 items-center justify-center rounded-full border border-white/35 bg-white/20 backdrop-blur-[2px]">

@@ -1,3 +1,5 @@
+import { OnboardingFolderItem, SurveyQuestionItem } from "@/types/ats";
+
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
@@ -83,11 +85,108 @@ export function buildTemplateMessage(params: {
   }
 }
 
-export const DEFAULT_TEST_DAY_SURVEY: string[] = [
-  "1. Bugungi sinov kunida jamoadagi muhit va hamkasblarning munosabati sizga qanday taassurot qoldirdi?",
-  "2. Lavozim vazifalari va ish jarayoni sizga tushunarli bo'ldimi?",
-  "3. Ish joyi sharoitlari (tozalik, qulaylik, tartib) haqida fikringiz qanday?",
+export async function sendTelegramPhoto(
+  chatId: string,
+  photo: string,
+  caption?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token || !chatId) return { ok: false, error: "Token yoki Chat ID yo'q" };
+
+  try {
+    if (photo.startsWith("data:image/")) {
+      const [header, b64] = photo.split(",");
+      const mimeMatch = header.match(/data:(image\/[a-zA-Z0-9+.-]+);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const ext = mime.split("/")[1] || "jpg";
+      const bytes = Buffer.from(b64, "base64");
+      const form = new FormData();
+      form.append("chat_id", chatId);
+      if (caption) {
+        form.append("caption", caption.slice(0, 1024));
+        form.append("parse_mode", "HTML");
+      }
+      form.append("photo", new Blob([bytes], { type: mime }), `standard.${ext}`);
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        body: form,
+      });
+      const d = await res.json();
+      return d.ok ? { ok: true } : { ok: false, error: d.description };
+    }
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo,
+        caption: caption ? caption.slice(0, 1024) : undefined,
+        parse_mode: "HTML",
+      }),
+    });
+    const d = await res.json();
+    return d.ok ? { ok: true } : { ok: false, error: d.description };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Photo xatosi" };
+  }
+}
+
+export const DEFAULT_SURVEY_ITEMS: SurveyQuestionItem[] = [
+  {
+    id: "q1",
+    question: "1. Jamoadagi muhit va hamkasblarning munosabati sizga qanday taassurot qoldirdi? (1-5 ball)",
+    type: "rating",
+  },
+  {
+    id: "q2",
+    question: "2. Lavozim vazifalari va ish jarayoni sizga tushunarli bo'ldimi? (1-5 ball)",
+    type: "rating",
+  },
+  {
+    id: "q3",
+    question: "3. Ish joyi sharoitlari (tozalik, qulaylik, tartib)ni qanday baholaysiz? (1-5 ball)",
+    type: "rating",
+  },
+  {
+    id: "q4",
+    question: "4. Sinov kuni bo'yicha o'z fikr va takliflaringizni yozib qoldiring:",
+    type: "text",
+  },
 ];
+
+export const DEFAULT_ONBOARDING_FOLDERS: OnboardingFolderItem[] = [
+  {
+    id: "welcome_book",
+    title: "Welcome Book",
+    description:
+      "Aura kompaniyasiga xush kelibsiz! Bizning maqsadimiz — mijozlarga yuqori darajada xizmat ko'rsatish va ahil jamoa bo'lib ishlash. Birinchi kundan boshlab do'kon menejeri sizga LMS o'quv dasturini ochib beradi.",
+    images: [],
+  },
+  {
+    id: "dress_code",
+    title: "Tashqi ko'rinish standarti",
+    description:
+      "• Toza va dazmollangan kompaniya formasi / klassik uslub.\n• Soch va tirnoqlar tartibli bo'lishi shart.\n• Kuchli atir va ortiqcha taqinchoqlarsiz, ozoda ko'rinish.",
+    images: [],
+  },
+  {
+    id: "work_hours",
+    title: "Ish vaqti va unga rioya qilish",
+    description:
+      "• Smena boshlanishidan kamida 15 daqiqa oldin do'konda bo'lish.\n• Tushlik va tanaffuslar belgilangan jadval asosida.\n• Kechikish yoki sababli holatlar haqida rahbarni oldindan ogohlantirish.",
+    images: [],
+  },
+  {
+    id: "store_conduct",
+    title: "Ichki standart (zalda o'zini tutish)",
+    description:
+      "• Savdo zalida telefon ishlatmaslik.\n• Har bir mijozni tabassum bilan kutib olish va yordam taklif qilish.\n• Javonlar tozaligi va mahsulotlar tartibini doimiy nazorat qilish.",
+    images: [],
+  },
+];
+
+export const DEFAULT_TEST_DAY_SURVEY: string[] = DEFAULT_SURVEY_ITEMS.map((i) => i.question);
 
 export const DEFAULT_WELCOME_BOOK_TEXT =
   `📖 <b>Mini Welcome Book va Kompaniya Standartlari</b>\n\n` +

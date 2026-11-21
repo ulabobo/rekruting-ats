@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase-db";
-import { DEFAULT_TEST_DAY_SURVEY, sendTelegramMessage } from "@/lib/telegram";
+import { DEFAULT_SURVEY_ITEMS, sendTelegramMessage } from "@/lib/telegram";
+import { SurveyQuestionItem } from "@/types/ats";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +29,9 @@ export async function GET() {
       .eq("id", "default")
       .maybeSingle();
 
-    const customQs = setRow?.data?.testDaySurveyQuestions as string[] | undefined;
-    const surveyQuestions: string[] =
-      customQs && customQs.length > 0 ? customQs : DEFAULT_TEST_DAY_SURVEY;
+    const customItems = setRow?.data?.testDaySurveyItems as SurveyQuestionItem[] | undefined;
+    const surveyItems: SurveyQuestionItem[] =
+      customItems && customItems.length > 0 ? customItems : DEFAULT_SURVEY_ITEMS;
 
     const nowMs = Date.now();
     const tashkentNow = new Date(nowMs + 5 * 3600 * 1000);
@@ -90,11 +91,24 @@ export async function GET() {
         (todayIso > flow.test_date ||
           (todayIso === flow.test_date && tashkentHour >= shiftEndHour))
       ) {
+        const firstQ = surveyItems[0];
+        const ratingMarkup =
+          firstQ.type === "rating"
+            ? {
+                inline_keyboard: [
+                  [1, 2, 3, 4, 5].map((n) => ({
+                    text: `${n} ⭐️`,
+                    callback_data: `onboard:rate:0:${n}`,
+                  })),
+                ],
+              }
+            : undefined;
         await sendTelegramMessage(
           flow.chat_id,
           `📝 <b>Bugungi sinov kuningiz yakunlandi!</b>\n\n` +
-            `Iltimos, sinov kuni haqida kichik so'rovnomadan o'ting (javobingizni matn shaklida yozing):\n\n` +
-            `<b>${surveyQuestions[0]}</b>`
+            `Iltimos, sinov kuni haqida kichik so'rovnomadan o'ting:\n\n` +
+            `<b>${firstQ.question}</b>`,
+          ratingMarkup
         );
         await sb
           .from("ats_onboarding_flows")

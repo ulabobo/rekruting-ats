@@ -4,6 +4,7 @@ import {
   addDocument,
   addEvaluation,
   changeApplicationVacancy,
+  closeVacancy,
   createApplicationFromLead,
   createMassProject,
   createRecruiterUser,
@@ -239,6 +240,17 @@ export async function POST(req: NextRequest) {
       await changeApplicationVacancy({
         applicationId: body.applicationId,
         newVacancyId: body.newVacancyId,
+        newShift: body.newShift,
+        actorId: body.actorId || "u-admin",
+        actorName: body.actorName || "Rekruter",
+      });
+      const db = await getFullDatabase();
+      return NextResponse.json({ db });
+    }
+
+    if (action === "close_vacancy") {
+      await closeVacancy({
+        vacancyId: body.vacancyId,
         actorId: body.actorId || "u-admin",
         actorName: body.actorName || "Rekruter",
       });

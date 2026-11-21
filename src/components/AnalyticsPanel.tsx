@@ -36,6 +36,7 @@ const STAGE_RANK: Record<string, number> = {
   amaliy_topshiriq: 4,
   offer: 5,
   hujjat_lms: 6,
+  ishga_qabul: 7,
 };
 
 function getPeriodBounds(

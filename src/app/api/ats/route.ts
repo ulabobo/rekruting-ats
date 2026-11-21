@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
         scores: body.scores || [],
         comment: body.comment || "",
         decision: body.decision || "pass",
+        toifa: body.toifa,
       });
       const db = await getFullDatabase();
       return NextResponse.json({ db });

@@ -538,7 +538,7 @@ export async function moveApplicationStage(params: {
 
   if (targetIdx === -1) return { ok: false, error: "Noto'g'ri bosqich." };
 
-  if (["test_kuni", "offer", "hujjat_lms"].includes(app.current_stage)) {
+  if (["test_kuni", "offer", "hujjat_lms", "ishga_qabul"].includes(app.current_stage)) {
     return {
       ok: false,
       error:
@@ -710,6 +710,7 @@ export async function addEvaluation(params: {
   scores: { criterion: string; score: number }[];
   comment: string;
   decision: "pass" | "fail" | "offer" | "reject";
+  toifa?: string;
 }): Promise<void> {
   const sb = getSupabase();
   const avg = params.scores.length
@@ -738,6 +739,26 @@ export async function addEvaluation(params: {
       .from("ats_applications")
       .update({ match_score: Math.min(100, Math.round(avg * 20)) })
       .eq("id", params.applicationId);
+  }
+
+  if (params.toifa) {
+    const { data: appRow } = await sb
+      .from("ats_applications")
+      .select("candidate_id")
+      .eq("id", params.applicationId)
+      .maybeSingle();
+    if (appRow?.candidate_id) {
+      const { data: cRow } = await sb
+        .from("ats_candidates")
+        .select("questionnaire_data")
+        .eq("id", appRow.candidate_id)
+        .maybeSingle();
+      const qData = (cRow?.questionnaire_data as Record<string, string>) || {};
+      await sb
+        .from("ats_candidates")
+        .update({ questionnaire_data: { ...qData, toifa: params.toifa } })
+        .eq("id", appRow.candidate_id);
+    }
   }
 
   await logAudit({
@@ -1412,7 +1433,7 @@ export async function changeApplicationVacancy(params: {
     .maybeSingle();
 
   if (!app) throw new Error("Ariza topilmadi");
-  if (["test_kuni", "offer", "hujjat_lms"].includes(app.current_stage)) {
+  if (["test_kuni", "offer", "hujjat_lms", "ishga_qabul"].includes(app.current_stage)) {
     throw new Error("Nomzod bot avtopilotiga o'tgan — filial va smenani o'zgartirib bo'lmaydi!");
   }
 

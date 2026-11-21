@@ -887,7 +887,7 @@ export default function AtsDashboard({
                                   : "bg-rose-500 text-white";
                               const starRating = (app.matchScore / 20).toFixed(1);
 
-                              const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(
+                              const isAutopilot = ["test_kuni", "offer", "hujjat_lms", "ishga_qabul"].includes(
                                 app.currentStage
                               );
 

@@ -186,12 +186,11 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
     case "phone":
       return tgCall(token, "sendMessage", {
         chat_id: chatId,
-        text: `${hdr}Telefon raqamingizni yuboring (+998901234567):`,
+        text: `${hdr}📱 Telefon raqamingizni yozing (masalan: +998901234567):`,
         parse_mode: "HTML",
         reply_markup: {
-          keyboard: [[{ text: "📱 Telefon raqamni yuborish", request_contact: true }]],
+          keyboard: [[{ text: "📋 Bo'sh ish o'rinlari" }, { text: "📄 Ariza holati" }]],
           resize_keyboard: true,
-          one_time_keyboard: true,
         },
       });
     case "gender":
@@ -205,6 +204,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
               { text: "👨 Erkak", callback_data: "ans:gender:Erkak" },
               { text: "👩 Ayol", callback_data: "ans:gender:Ayol" },
             ],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -218,9 +218,10 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
         text: `${hdr}Oilaviy holatingiz:`,
         parse_mode: "HTML",
         reply_markup: {
-          inline_keyboard: opts.map((opt) => [
-            { text: opt, callback_data: `ans:marital:${opt}` },
-          ]),
+          inline_keyboard: [
+            ...opts.map((opt) => [{ text: opt, callback_data: `ans:marital:${opt}` }]),
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
+          ],
         },
       });
     }
@@ -235,6 +236,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
               { text: "Ha", callback_data: "ans:pregnant:Ha" },
               { text: "Yo'q", callback_data: "ans:pregnant:Yo'q" },
             ],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -249,6 +251,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
               { text: "Ha", callback_data: "ans:student:Ha" },
               { text: "Yo'q", callback_data: "ans:student:Yo'q" },
             ],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -262,6 +265,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
             [{ text: "O'rta", callback_data: "ans:education:O'rta" }],
             [{ text: "O'rta maxsus", callback_data: "ans:education:O'rta maxsus" }],
             [{ text: "Oliy ma'lumot", callback_data: "ans:education:Oliy ma'lumot" }],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -275,6 +279,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
             [{ text: "Ilg'or (erkin gapiraman)", callback_data: "ans:uzLang:Ilg'or" }],
             [{ text: "O'rta", callback_data: "ans:uzLang:O'rta" }],
             [{ text: "Past", callback_data: "ans:uzLang:Past" }],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -288,6 +293,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
             [{ text: "Ilg'or (erkin gapiraman)", callback_data: "ans:ruLang:Ilg'or" }],
             [{ text: "O'rta", callback_data: "ans:ruLang:O'rta" }],
             [{ text: "Past", callback_data: "ans:ruLang:Past" }],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -307,6 +313,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
               { text: "3–5 yil", callback_data: "ans:totalExp:3-5 yil" },
             ],
             [{ text: "5+ yil", callback_data: "ans:totalExp:5+ yil" }],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -344,14 +351,15 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "👥 Tanish", callback_data: "q:source:Tanish" },
-              { text: "📢 OLX", callback_data: "q:source:OLX" },
+              { text: "👥 Tanish", callback_data: "ans:source:Tanish" },
+              { text: "📢 OLX", callback_data: "ans:source:OLX" },
             ],
             [
-              { text: "📸 Instagram", callback_data: "q:source:Instagram" },
-              { text: "✈️ Telegram kanal", callback_data: "q:source:Telegram kanal" },
+              { text: "📸 Instagram", callback_data: "ans:source:Instagram" },
+              { text: "✈️ Telegram kanal", callback_data: "ans:source:Telegram kanal" },
             ],
-            [{ text: "💼 hh.uz", callback_data: "q:source:hh.uz" }],
+            [{ text: "💼 hh.uz", callback_data: "ans:source:hh.uz" }],
+            [{ text: "⬅️ Orqaga", callback_data: "back_step" }],
           ],
         },
       });
@@ -457,11 +465,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      if (data === "back_step") {
+        const st = await getSession(chatId);
+        if (st && st.step !== "idle") {
+          const idx = STEP_ORDER.indexOf(st.step);
+          if (idx > 0) {
+            st.step = STEP_ORDER[idx - 1];
+            await saveSession(chatId, st);
+            await askNextQuestion(token, chatId, st);
+          }
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       if (data === "back:reg") {
         const { data: allVacs } = await sb.from("ats_vacancies").select("region");
         const regions = Array.from(
-          new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-        ).filter((r) => r !== "Boshqa hudud") as string[];
+          new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
+        ).filter(
+          (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
+        ) as string[];
         await editOrSend(
           token,
           chatId,
@@ -486,8 +509,8 @@ export async function POST(req: NextRequest) {
           .eq("region", region);
 
         const baseBranches =
-          region === "Toshkent shahri"
-            ? ["Aura-1", "Aura-2", "Aura-3", "Aura-4", "Bosh ofis", "Toshkent ombor"]
+          region === "Qarshi shahri"
+            ? ["Qarshi (Markaziy filial)", "Qarshi-2"]
             : [];
         const branches = Array.from(
           new Set([...baseBranches, ...(vacs || []).map((v) => v.branch).filter(Boolean)])
@@ -845,8 +868,10 @@ export async function POST(req: NextRequest) {
 
       const { data: allVacs } = await sb.from("ats_vacancies").select("region");
       const regions = Array.from(
-        new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-      ).filter((r) => r !== "Boshqa hudud") as string[];
+        new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
+      ).filter(
+        (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
+      ) as string[];
 
       await tgCall(token, "sendMessage", {
         chat_id: chatId,

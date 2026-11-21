@@ -86,7 +86,15 @@ export default function CandidateDrawer({
     message: string;
   } | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(application.currentStage);
+  const [selectedToifa, setSelectedToifa] = useState(
+    candidate.questionnaireData?.toifa || "1-toifa"
+  );
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectPreset, setRejectPreset] = useState("Tajriba yetarli emas");
+  const [rejectCustom, setRejectCustom] = useState("");
+  const isAutopilot = ["test_kuni", "offer", "hujjat_lms", "ishga_qabul"].includes(
+    application.currentStage
+  );
   const availableShifts =
     db.settings.shifts && db.settings.shifts.length > 0
       ? db.settings.shifts
@@ -186,6 +194,7 @@ export default function CandidateDrawer({
           })),
           comment: evalComment,
           decision: "pass",
+          toifa: application.currentStage === "rahbar_suhbati" ? selectedToifa : undefined,
         }),
       });
       const data = await res.json();
@@ -245,12 +254,15 @@ export default function CandidateDrawer({
     }
   };
 
-  const handleReject = async () => {
-    const reason = window.prompt(
-      lang === "ru" ? "Причина отклонения:" : "Rad etish sababini kiriting:",
-      lang === "ru" ? "Не подходит по требованиям" : "Talablarga mos kelmadi"
-    );
-    if (!reason) return;
+  const handleReject = () => {
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmReject = async () => {
+    const finalReason =
+      rejectPreset === "Boshqa sabab"
+        ? rejectCustom.trim() || "Boshqa sabab"
+        : rejectPreset;
     setBusy(true);
     try {
       const res = await fetch("/api/ats", {
@@ -259,7 +271,7 @@ export default function CandidateDrawer({
         body: JSON.stringify({
           action: "reject_application",
           applicationId: application.id,
-          reason,
+          reason: finalReason,
           actorId: currentUser.id,
           actorName: currentUser.fullName,
           lang,
@@ -267,6 +279,7 @@ export default function CandidateDrawer({
       });
       const data = await res.json();
       if (res.ok) {
+        setShowRejectModal(false);
         onUpdateDb(data.db);
         onClose();
       }
@@ -499,7 +512,7 @@ export default function CandidateDrawer({
         {/* Simple Stage Stepper */}
         <div className="border-b border-slate-200 bg-white px-6 py-3">
           {(() => {
-            const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(
+            const isAutopilot = ["test_kuni", "offer", "hujjat_lms", "ishga_qabul"].includes(
               application.currentStage
             );
             return (
@@ -682,6 +695,7 @@ export default function CandidateDrawer({
                       ["Oxirgi ish joyi", candidate.questionnaireData.lastWork],
                       ["Og'ir kasallik / cheklov", candidate.questionnaireData.illness],
                       ["Sinov kuni sanasi", candidate.questionnaireData.testDate],
+                      ["Toifa", candidate.questionnaireData.toifa],
                     ]
                       .filter(([, val]) => Boolean(val))
                       .map(([label, val]) => (
@@ -732,6 +746,29 @@ export default function CandidateDrawer({
                     </div>
                   </div>
                 ))}
+                {application.currentStage === "rahbar_suhbati" && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-2.5">
+                    <label className="mb-1.5 block text-[11px] font-bold text-emerald-800">
+                      Lavozim bo&apos;yicha toifani tanlang:
+                    </label>
+                    <div className="flex gap-2">
+                      {["0-toifa", "1-toifa", "2-toifa"].map((tf) => (
+                        <button
+                          key={tf}
+                          type="button"
+                          onClick={() => setSelectedToifa(tf)}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
+                            selectedToifa === tf
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "bg-white text-slate-700 hover:bg-emerald-100"
+                          }`}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <textarea
                   rows={2}
                   required
@@ -897,6 +934,82 @@ export default function CandidateDrawer({
               alt={candidate.fullName}
               className="max-h-[85vh] rounded-2xl border border-white/20 object-contain shadow-2xl"
             />
+          </div>
+        </div>
+      )}
+      {showRejectModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowRejectModal(false);
+          }}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]"
+        >
+          <div className="w-full max-w-md space-y-3 rounded-2xl border border-slate-200 bg-white p-5 text-xs shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-bold text-slate-900">
+                {lang === "ru" ? "Причина отклонения" : "Rad etish sababini tanlang"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {[
+                "Tajriba yetarli emas",
+                "Maosh / sharoit to'g'ri kelmadi",
+                "Smena / ish grafigi mos emas",
+                "Suhbatdan o'ta olmadi",
+                "Aloqaga chiqib bo'lmadi",
+                "Boshqa sabab",
+              ].map((reasonOpt) => (
+                <label
+                  key={reasonOpt}
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 font-semibold transition ${
+                    rejectPreset === reasonOpt
+                      ? "border-rose-300 bg-rose-50 text-rose-800"
+                      : "border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rejectReason"
+                    checked={rejectPreset === reasonOpt}
+                    onChange={() => setRejectPreset(reasonOpt)}
+                  />
+                  <span>{reasonOpt}</span>
+                </label>
+              ))}
+            </div>
+            {rejectPreset === "Boshqa sabab" && (
+              <textarea
+                rows={2}
+                value={rejectCustom}
+                onChange={(e) => setRejectCustom(e.target.value)}
+                placeholder="Sababni qisqacha yozing..."
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-xs focus:border-rose-400 focus:outline-none"
+              />
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {lang === "ru" ? "Отмена" : "Bekor qilish"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleConfirmReject}
+                className="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+              >
+                {busy ? "..." : lang === "ru" ? "Отклонить" : "Rad etishni tasdiqlash"}
+              </button>
+            </div>
           </div>
         </div>
       )}

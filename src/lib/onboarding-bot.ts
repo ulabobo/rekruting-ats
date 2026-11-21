@@ -277,38 +277,54 @@ export async function handleOnboardingCallback(
       })
       .eq("id", flow.id);
 
+    const activeFolders = folders.filter((f) => f.enabled !== false);
+    const standardsSummary = activeFolders
+      .map((f) => `📌 <b>${f.title}</b>\n${f.description}`)
+      .join("\n\n");
+
     const offerMsg =
-      `🎉 <b>Tabriklaymiz, ${cand?.full_name || ""}! Sizga rasmiy ISH TAKLIFI!</b>\n\n` +
-      `💼 Lavozim: <b>${vac?.position || "—"}</b>\n` +
-      `🏢 Do'kon / Filial: <b>${vac?.branch || "—"}</b>\n` +
-      `🕒 Smena: <b>${flow.shift || vac?.shift || "—"}</b>\n` +
-      `💰 Oylik maosh: <b>${vac?.salary_band || "—"}</b>\n\n` +
-      `Quyida kompaniyamiz standartlari va Welcome Book bilan tanishing 👇`;
+      `🎉 <b>Tabriklaymiz, ${cand?.full_name || ""}! Sizga ISH TAKLIFI:</b>\n\n` +
+      `💼 <b>Lavozim:</b> ${vac?.position || "—"}\n` +
+      `🏢 <b>Do'kon / Filial:</b> ${vac?.branch || "—"}\n` +
+      `🕒 <b>Smena:</b> ${flow.shift || vac?.shift || "—"}\n` +
+      `💰 <b>Maosh:</b> ${vac?.salary_band || "—"}\n` +
+      (standardsSummary ? `\n${standardsSummary}\n` : "");
 
-    await editOrSendSimple(token, chatId, msgId, offerMsg);
-
-    for (const folder of folders.filter((f) => f.enabled !== false)) {
-      const caption = `📌 <b>${folder.title}</b>\n\n${folder.description}`;
-      if (folder.images && folder.images.length > 0) {
-        await sendTelegramPhoto(String(chatId), folder.images[0], caption);
-        for (let i = 1; i < folder.images.length; i++) {
-          await sendTelegramPhoto(String(chatId), folder.images[i]);
+    const hasImages = activeFolders.some((f) => f.images && f.images.length > 0);
+    if (!hasImages) {
+      await editOrSendSimple(
+        token,
+        chatId,
+        msgId,
+        `${offerMsg}\nTanishib chiqdingizmi? Ishga kirishga rozimisiz?`,
+        {
+          inline_keyboard: [
+            [{ text: "✅ Ishga kirishga roziman", callback_data: "onboard:welcome:yes" }],
+            [{ text: "❌ Rad etaman", callback_data: "onboard:welcome:no" }],
+          ],
         }
-      } else {
-        await sendTelegramMessage(String(chatId), caption);
+      );
+    } else {
+      await editOrSendSimple(token, chatId, msgId, offerMsg);
+      for (const folder of activeFolders) {
+        if (folder.images && folder.images.length > 0) {
+          await sendTelegramPhoto(String(chatId), folder.images[0], `📌 <b>${folder.title}</b>`);
+          for (let i = 1; i < folder.images.length; i++) {
+            await sendTelegramPhoto(String(chatId), folder.images[i]);
+          }
+        }
       }
+      await sendTelegramMessage(
+        String(chatId),
+        `Tanishib chiqdingizmi? Ishga kirishga rozimisiz?`,
+        {
+          inline_keyboard: [
+            [{ text: "✅ Ishga kirishga roziman", callback_data: "onboard:welcome:yes" }],
+            [{ text: "❌ Rad etaman", callback_data: "onboard:welcome:no" }],
+          ],
+        }
+      );
     }
-
-    await sendTelegramMessage(
-      String(chatId),
-      `Barcha ma'lumotlar va standartlar bilan tanishib chiqdingizmi? Ishga kirishga rozimisiz?`,
-      {
-        inline_keyboard: [
-          [{ text: "✅ Ishga kirishga rozilik bildiraman", callback_data: "onboard:welcome:yes" }],
-          [{ text: "❌ Yo'q, rozi emasman", callback_data: "onboard:welcome:no" }],
-        ],
-      }
-    );
     return true;
   }
 
@@ -380,10 +396,8 @@ export async function handleOnboardingCallback(
       token,
       chatId,
       msgId,
-      `📄 <b>Hujjatlarni yuborish bosqichi (1/4)</b>\n\n` +
-        `Iltimos, <b>Pasport yoki ID kartangizning OLD tomoni</b> rasmini yuboring.\n\n` +
-        `💡 <i>Namuna: Hujjat yorug' joyda, barcha yozuvlar va rasm aniq ko'rinadigan qilib (chetlari kesilmagan holda) suratga oling.</i>\n\n` +
-        `⚠️ Eslatma: Hujjatlar 24 soat ichida yuborilmasa, nomzodlik bekor qilinadi.`
+      `📄 <b>Hujjatlar (1/4)</b>\n\n` +
+        `📸 <b>Pasport yoki ID kartangizning OLD tomoni</b> rasmini yuboring (yorug' va aniq ko'rinsin).`
     );
     return true;
   }
@@ -430,7 +444,7 @@ export async function handleOnboardingCallback(
       .from("ats_applications")
       .update({
         status: "hired",
-        current_stage: "hujjat_lms",
+        current_stage: "ishga_qabul",
         hire_start_date: tomorrowIso,
         lms_transferred_at: nowIso,
       })

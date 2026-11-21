@@ -18,6 +18,7 @@ export async function sendTelegramMessage(
       chat_id: chatId,
       text,
       parse_mode: "HTML",
+      disable_web_page_preview: true,
     };
     if (replyMarkup) {
       payload.reply_markup = replyMarkup;

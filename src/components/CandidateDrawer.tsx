@@ -85,6 +85,7 @@ export default function CandidateDrawer({
     targetStage: string;
     message: string;
   } | null>(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(application.currentStage);
   const availableShifts =
     db.settings.shifts && db.settings.shifts.length > 0
@@ -110,7 +111,8 @@ export default function CandidateDrawer({
         (m) => m.track === application.track && m.stage === targetStage && m.enabled
       );
       if (tpl) {
-        const raw = lang === "ru" ? tpl.templateRu : tpl.templateUz;
+        const botLang = (candidate.questionnaireData?.botLang as Language) || "uz";
+        const raw = botLang === "ru" ? tpl.templateRu : tpl.templateUz;
         defaultMsg = raw
           .replaceAll("{ism}", candidate.fullName)
           .replaceAll("{lavozim}", vacancy.position)
@@ -118,10 +120,11 @@ export default function CandidateDrawer({
           .replaceAll("{maosh}", vacancy.salaryBand)
           .replaceAll("{smena}", initialShift);
       } else {
+        const botLang = (candidate.questionnaireData?.botLang as Language) || "uz";
         defaultMsg =
-          lang === "ru"
-            ? `Здравствуйте, ${candidate.fullName}! Вы перешли на этап «${getStageLabel(application.track, targetStage, lang)}» по вакансии ${vacancy.position} (${vacancy.branch}).`
-            : `Assalomu alaykum, ${candidate.fullName}! Siz ${vacancy.branch} filialidagi ${vacancy.position} lavozimi bo'yicha «${getStageLabel(application.track, targetStage, lang)}» bosqichiga o'tdingiz.`;
+          botLang === "ru"
+            ? `Здравствуйте, ${candidate.fullName}! Вы перешли на этап «${getStageLabel(application.track, targetStage, "ru")}» по вакансии ${vacancy.position} (${vacancy.branch}).`
+            : `Assalomu alaykum, ${candidate.fullName}! Siz ${vacancy.branch} filialidagi ${vacancy.position} lavozimi bo'yicha «${getStageLabel(application.track, targetStage, "uz")}» bosqichiga o'tdingiz.`;
       }
     }
     setStageConfirm({ targetStage, message: defaultMsg });
@@ -168,8 +171,14 @@ export default function CandidateDrawer({
           action: "add_evaluation",
           applicationId: application.id,
           evaluatorId: currentUser.id,
-          evaluatorName: currentUser.fullName,
-          evaluatorRole: currentUser.position,
+          evaluatorName:
+            application.currentStage === "rahbar_suhbati"
+              ? `${vacancy.hiringManagerName || "Rahbar"} (Menejer)`
+              : currentUser.fullName,
+          evaluatorRole:
+            application.currentStage === "rahbar_suhbati"
+              ? "Rahbar (Menejer)"
+              : currentUser.position,
           stage: application.currentStage,
           scores: criteria.map((c) => ({
             criterion: lang === "ru" ? c.ru : c.uz,
@@ -393,7 +402,9 @@ export default function CandidateDrawer({
               <img
                 src={candidate.avatarUrl}
                 alt={candidate.fullName}
-                className="h-12 w-12 shrink-0 rounded-2xl border border-slate-200 object-cover"
+                onClick={() => setShowPhotoModal(true)}
+                title="Kattalashtirib ko'rish"
+                className="h-12 w-12 shrink-0 cursor-pointer rounded-2xl border border-slate-200 object-cover transition hover:scale-105 hover:ring-2 hover:ring-blue-400"
               />
             ) : (
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-600">
@@ -670,6 +681,7 @@ export default function CandidateDrawer({
                       ["Umumiy tajriba", candidate.questionnaireData.totalExp],
                       ["Oxirgi ish joyi", candidate.questionnaireData.lastWork],
                       ["Og'ir kasallik / cheklov", candidate.questionnaireData.illness],
+                      ["Sinov kuni sanasi", candidate.questionnaireData.testDate],
                     ]
                       .filter(([, val]) => Boolean(val))
                       .map(([label, val]) => (
@@ -684,9 +696,20 @@ export default function CandidateDrawer({
 
             {/* Simple Evaluation */}
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                {t.evaluationTitle}
-              </h3>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {application.currentStage === "rahbar_suhbati"
+                    ? lang === "ru"
+                      ? "Оценка руководителя (Менеджер)"
+                      : "Rahbar (Menejer) baholashi"
+                    : t.evaluationTitle}
+                </h3>
+                {application.currentStage === "rahbar_suhbati" && (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                    Menejer bosqichi
+                  </span>
+                )}
+              </div>
               <form onSubmit={handleSaveEvaluation} className="space-y-2.5">
                 {criteria.map((c) => (
                   <div key={c.uz} className="flex items-center justify-between gap-2 text-xs">
@@ -853,6 +876,27 @@ export default function CandidateDrawer({
                   : "Tasdiqlash va yuborish"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showPhotoModal && candidate.avatarUrl && (
+        <div
+          onClick={() => setShowPhotoModal(false)}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
+        >
+          <div className="relative max-h-[90vh] max-w-2xl">
+            <button
+              type="button"
+              onClick={() => setShowPhotoModal(false)}
+              className="absolute -right-3 -top-3 rounded-full bg-white p-1.5 text-slate-800 shadow-lg hover:bg-slate-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={candidate.avatarUrl}
+              alt={candidate.fullName}
+              className="max-h-[85vh] rounded-2xl border border-white/20 object-contain shadow-2xl"
+            />
           </div>
         </div>
       )}

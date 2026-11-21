@@ -248,6 +248,7 @@ export interface SystemSettings {
   offerTimerStoreDays: number;
   offerTimerOfficeDays: number;
   shifts?: string[];
+  instantTestMode?: boolean;
   testDaySurveyQuestions?: string[];
   testDaySurveyItems?: SurveyQuestionItem[];
   welcomeBookText?: string;

@@ -114,10 +114,14 @@ async function clearSession(chatId: number) {
 }
 
 async function tgCall(token: string, method: string, body: Record<string, unknown>) {
+  const payload =
+    method === "sendMessage" || method === "editMessageText"
+      ? { disable_web_page_preview: true, ...body }
+      : body;
   await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -436,7 +440,7 @@ export async function POST(req: NextRequest) {
         const { data: allVacs } = await sb.from("ats_vacancies").select("region");
         const regions = Array.from(
           new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-        ) as string[];
+        ).filter((r) => r !== "Boshqa hudud") as string[];
         await editOrSend(
           token,
           chatId,
@@ -725,7 +729,7 @@ export async function POST(req: NextRequest) {
             telegramChatId: String(chatId),
             telegramUsername: cq.from?.username ? `@${cq.from.username}` : undefined,
             avatarUrl: st.avatarUrl,
-            questionnaireData: st.answers,
+            questionnaireData: { botLang: "uz", ...st.answers },
           });
         } else if (st.vacancyId) {
           await createApplicationFromLead({
@@ -743,7 +747,7 @@ export async function POST(req: NextRequest) {
             telegramChatId: String(chatId),
             telegramUsername: cq.from?.username ? `@${cq.from.username}` : undefined,
             avatarUrl: st.avatarUrl,
-            questionnaireData: st.answers,
+            questionnaireData: { botLang: "uz", ...st.answers },
           });
         }
 
@@ -819,7 +823,7 @@ export async function POST(req: NextRequest) {
       const { data: allVacs } = await sb.from("ats_vacancies").select("region");
       const regions = Array.from(
         new Set(["Toshkent shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-      ) as string[];
+      ).filter((r) => r !== "Boshqa hudud") as string[];
 
       await tgCall(token, "sendMessage", {
         chat_id: chatId,

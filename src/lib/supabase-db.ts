@@ -367,7 +367,9 @@ async function sendStageTemplateToCandidate(params: {
       params.candidate.questionnaireData?.shift ||
       params.vacancy.shift ||
       "To'liq kun (5/2)";
-    const rawText = params.lang === "ru" ? tpl.template_ru : tpl.template_uz;
+    const botLang =
+      (params.candidate.questionnaireData?.botLang as Language) || "uz";
+    const rawText = botLang === "ru" ? tpl.template_ru : tpl.template_uz;
     text = rawText
       .replaceAll("{ism}", params.candidate.fullName)
       .replaceAll("{lavozim}", params.vacancy.position)
@@ -1502,8 +1504,10 @@ export async function sendMissedCallMessage(params: {
     return { ok: false, error: "Telefonni ko'tarmadi shabloni sozlamalarda o'chirilgan" };
   }
 
+  const botLang =
+    ((cand.questionnaire_data as Record<string, string> | null)?.botLang as Language) || "uz";
   const rawText =
-    params.lang === "ru"
+    botLang === "ru"
       ? tpl?.template_ru ||
         "Здравствуйте, {ism}! Мы звонили вам по поводу вакансии {lavozim} в филиале {filial}, но не смогли дозвониться. Напишите нам в этот бот в удобное время."
       : tpl?.template_uz ||

@@ -25,6 +25,7 @@ async function editOrSendSimple(
         message_id: msgId,
         text,
         parse_mode: "HTML",
+        disable_web_page_preview: true,
         reply_markup: replyMarkup,
       }),
     });
@@ -75,11 +76,31 @@ export async function handleOnboardingCallback(
   if (data.startsWith("onboard:testdate:")) {
     const chosenDate = data.replace("onboard:testdate:", "");
     const [y, m, d] = chosenDate.split("-");
+    const formattedDate = `${d}.${m}.${y}`;
+
+    if (cand) {
+      const qData = (cand.questionnaire_data as Record<string, string>) || {};
+      await sb
+        .from("ats_candidates")
+        .update({ questionnaire_data: { ...qData, testDate: formattedDate } })
+        .eq("id", cand.id);
+    }
+
+    const { data: setRow } = await sb
+      .from("ats_settings")
+      .select("data")
+      .eq("id", "default")
+      .maybeSingle();
+
+    const instantTest = Boolean(setRow?.data?.instantTestMode);
+
     await sb
       .from("ats_onboarding_flows")
       .update({
         test_date: chosenDate,
-        step: "test_date_selected",
+        step: instantTest ? "in_survey" : "test_date_selected",
+        survey_index: 0,
+        survey_answers: [],
         updated_at: new Date().toISOString(),
       })
       .eq("id", flow.id);
@@ -89,12 +110,42 @@ export async function handleOnboardingCallback(
       chatId,
       msgId,
       `✅ <b>Sinov kuni sanasi tasdiqlandi!</b>\n\n` +
-        `📅 Sana: <b>${d}.${m}.${y}</b>\n` +
+        `📅 Sana: <b>${formattedDate}</b>\n` +
         `🏢 Filial: <b>${vac?.branch || "—"}</b>\n` +
         `💼 Lavozim: <b>${vac?.position || "—"}</b>\n` +
         `🕒 Smena: <b>${flow.shift || vac?.shift || "—"}</b>\n\n` +
-        `Sinov kuni ertalab sizga eslatma xabari yuboramiz. Omad!`
+        (instantTest
+          ? `⚡ <i>Tez test rejimi yoqilgan — sinov kuni xabari va so'rovnoma darhol yuborilmoqda!</i>`
+          : `Sinov kuni ertalab sizga eslatma xabari yuboramiz. Omad!`)
     );
+
+    if (instantTest) {
+      await sendTelegramMessage(
+        String(chatId),
+        `☀️ <b>Xayrli tong, ${cand?.full_name || ""}!</b>\n\n` +
+          `Bugun sizda <b>${vac?.branch || "filial"}</b>da <b>${vac?.position || "lavozim"}</b> bo'yicha <b>sinov kuni</b>. Omad tilaymiz! 💪`
+      );
+      const customItems = setRow?.data?.testDaySurveyItems as SurveyQuestionItem[] | undefined;
+      const surveyItems: SurveyQuestionItem[] =
+        customItems && customItems.length > 0 ? customItems : DEFAULT_SURVEY_ITEMS;
+      const firstQ = surveyItems[0];
+      const ratingMarkup =
+        firstQ.type === "rating"
+          ? {
+              inline_keyboard: [
+                [1, 2, 3, 4, 5].map((n) => ({
+                  text: `${n} ⭐️`,
+                  callback_data: `onboard:rate:0:${n}`,
+                })),
+              ],
+            }
+          : undefined;
+      await sendTelegramMessage(
+        String(chatId),
+        `📝 <b>Bugungi sinov kuningiz yakunlandi!</b>\n\nIltimos, sinov kuni haqida kichik so'rovnomadan o'ting:\n\n<b>${firstQ.question}</b>`,
+        ratingMarkup
+      );
+    }
     return true;
   }
 

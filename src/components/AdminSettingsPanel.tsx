@@ -957,6 +957,28 @@ export default function AdminSettingsPanel({
               />
             </div>
 
+            <div className="col-span-2">
+              <label className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 font-semibold text-amber-900">
+                <input
+                  type="checkbox"
+                  checked={Boolean(db.settings.instantTestMode)}
+                  onChange={(e) =>
+                    onUpdateDb({
+                      ...db,
+                      settings: {
+                        ...db.settings,
+                        instantTestMode: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4"
+                />
+                <span>
+                  ⚡ Tez test rejimi (Kutishsiz) — Sinov kuni sanasi tanlanishi bilan ertalabki xabar va so&apos;rovnoma darhol yuboriladi
+                </span>
+              </label>
+            </div>
+
             <div className="col-span-2 pt-2">
               <p className="mb-2 font-bold text-slate-800">
                 {lang === "ru"

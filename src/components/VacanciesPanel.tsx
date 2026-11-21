@@ -87,6 +87,7 @@ export default function VacanciesPanel({
   onUpdateDb: (db: AtsDatabase) => void;
 }) {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [vacancyTab, setVacancyTab] = useState<"active" | "closed">("active");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<VacFilterState>({
     branches: [],
@@ -104,6 +105,8 @@ export default function VacanciesPanel({
 
   const filtered = useMemo(() => {
     return db.vacancies.filter((v) => {
+      if (vacancyTab === "active" && v.status === "closed") return false;
+      if (vacancyTab === "closed" && v.status !== "closed") return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         if (
@@ -119,7 +122,7 @@ export default function VacanciesPanel({
       if (filters.statuses.length > 0 && !filters.statuses.includes(v.status)) return false;
       return true;
     });
-  }, [db.vacancies, search, filters]);
+  }, [db.vacancies, vacancyTab, search, filters]);
 
   // Top Analytics stats dynamically calculated by headcount (shtat soni) from filtered vacancies!
   const totalHeadcount = filtered.reduce((s, v) => s + v.headcount, 0);
@@ -211,7 +214,28 @@ export default function VacanciesPanel({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 text-xs font-semibold">
+            <button
+              onClick={() => setVacancyTab("active")}
+              className={`rounded-lg px-3 py-1.5 ${
+                vacancyTab === "active" ? "bg-slate-900 text-white" : "text-slate-600"
+              }`}
+            >
+              {lang === "ru" ? "Активные" : "Faol"} (
+              {db.vacancies.filter((v) => v.status !== "closed").length})
+            </button>
+            <button
+              onClick={() => setVacancyTab("closed")}
+              className={`rounded-lg px-3 py-1.5 ${
+                vacancyTab === "closed" ? "bg-emerald-600 text-white" : "text-slate-600"
+              }`}
+            >
+              {lang === "ru" ? "Закрытые" : "Yopilganlar"} (
+              {db.vacancies.filter((v) => v.status === "closed").length})
+            </button>
+          </div>
+
           <div className="flex rounded-xl border border-slate-200 bg-white p-0.5">
             <button
               onClick={() => setViewMode("cards")}
@@ -543,7 +567,7 @@ export default function VacanciesPanel({
                       </span>
                     ) : null}
 
-                    {(v.status === "open" || v.status === "accepted") && (
+                    {currentUser.role === "admin" && (v.status === "open" || v.status === "accepted") && (
                       <button
                         type="button"
                         disabled={acceptingId === v.id}

@@ -473,3 +473,66 @@ export async function appendHujjatlarRowToSheets(params: {
     };
   }
 }
+
+export async function incrementStaffingFactInSheets(params: {
+  branch: string;
+  position: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const auth = getAuthClient();
+  if (!auth) return { ok: false, error: "Google Sheets ulanmagan" };
+
+  const spreadsheetId =
+    process.env.GOOGLE_SPREADSHEET_ID?.trim() ||
+    "1YA4_0soHhRSBpeyVkNq9LatOWsi_Pj6XR5yKnwm9QA4";
+
+  try {
+    const sheets = google.sheets({ version: "v4", auth });
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${params.branch}!A1:M100`,
+    });
+    const rows = res.data.values || [];
+    if (rows.length === 0) return { ok: false, error: "Shtatka varag'i bo'sh" };
+
+    let idxPos = 2;
+    let idxFact = 5;
+    let headerRow = 0;
+
+    for (let r = 0; r < Math.min(5, rows.length); r++) {
+      const upper = rows[r].map((c) => String(c || "").toUpperCase());
+      const pIdx = upper.findIndex((c) => c.includes("LAVOZIM"));
+      const fIdx = upper.findIndex(
+        (c) => c.includes("BAND") || c.includes("FAKT") || c.includes("FACT")
+      );
+      if (pIdx !== -1 && fIdx !== -1) {
+        idxPos = pIdx;
+        idxFact = fIdx;
+        headerRow = r;
+        break;
+      }
+    }
+
+    const targetPos = params.position.trim().toLowerCase();
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const cellPos = String(rows[r][idxPos] || "").trim().toLowerCase();
+      if (cellPos === targetPos) {
+        const currFact = Number(String(rows[r][idxFact] || "0").replace(/\D/g, "")) || 0;
+        const colLetter = String.fromCharCode(65 + idxFact);
+        const cellRef = `${params.branch}!${colLetter}${r + 1}`;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: cellRef,
+          valueInputOption: "USER_ENTERED",
+          requestBody: { values: [[currFact + 1]] },
+        });
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: "Lavozim shtatkada topilmadi" };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Shtatka update xatosi",
+    };
+  }
+}

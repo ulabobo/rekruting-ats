@@ -1,5 +1,5 @@
-import { addDocument, getSupabase } from "@/lib/supabase-db";
-import { appendHujjatlarRowToSheets } from "@/lib/google-sheets";
+import { addDocument, getSupabase, notifyApplicantsVacancyClosed } from "@/lib/supabase-db";
+import { appendHujjatlarRowToSheets, incrementStaffingFactInSheets } from "@/lib/google-sheets";
 import {
   DEFAULT_ONBOARDING_FOLDERS,
   DEFAULT_SURVEY_ITEMS,
@@ -568,6 +568,27 @@ export async function handleOnboardingMessage(
       .select("data")
       .eq("id", "default")
       .maybeSingle();
+
+    if (vac && app) {
+      const nextFilled = Math.min(vac.headcount || 1, (vac.filled_count || 0) + 1);
+      const isClosed = nextFilled >= (vac.headcount || 1);
+      await sb
+        .from("ats_vacancies")
+        .update({
+          filled_count: nextFilled,
+          status: isClosed ? "closed" : vac.status,
+        })
+        .eq("id", vac.id);
+
+      await incrementStaffingFactInSheets({
+        branch: vac.branch,
+        position: vac.position,
+      });
+
+      if (isClosed) {
+        await notifyApplicantsVacancyClosed(vac.id, app.id);
+      }
+    }
 
     const frontUrl = flow.passport_front_file_id
       ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_front_file_id)}`

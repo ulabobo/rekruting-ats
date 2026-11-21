@@ -392,29 +392,52 @@ export default function CandidateDrawer({
 
         {/* Simple Stage Stepper */}
         <div className="border-b border-slate-200 bg-white px-6 py-3">
-          <div className="flex w-full gap-1 overflow-x-auto pb-1">
-            {trackConfig.stages.map((st, idx) => {
-              const isPassed = idx <= currentIdx;
-              return (
-                <button
-                  key={st.id}
-                  disabled={busy}
-                  onClick={() => handleMoveStage(st.id)}
-                  style={{
-                    backgroundColor: isPassed ? st.color : "#e2e8f0",
-                    color: isPassed ? "#ffffff" : "#475569",
-                  }}
-                  className="chevron-step flex min-w-[115px] flex-1 items-center justify-center px-3 py-2 text-xs font-semibold transition hover:opacity-90"
-                >
-                  <span className="truncate">{lang === "ru" ? st.shortRu : st.shortUz}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <Info className="h-3.5 w-3.5 text-blue-500" />
-            {t.autoBotHint}
-          </p>
+          {(() => {
+            const isAutopilot = ["test_kuni", "offer", "hujjat_lms"].includes(
+              application.currentStage
+            );
+            return (
+              <>
+                <div className="flex w-full gap-1 overflow-x-auto pb-1">
+                  {trackConfig.stages.map((st, idx) => {
+                    const isPassed = idx <= currentIdx;
+                    const canClick = !isAutopilot && idx === currentIdx + 1;
+                    return (
+                      <button
+                        key={st.id}
+                        disabled={busy || !canClick}
+                        onClick={() => canClick && handleMoveStage(st.id)}
+                        title={
+                          isAutopilot
+                            ? "Bot avtopilotida"
+                            : canClick
+                            ? "Keyingi bosqichga o'tkazish"
+                            : "Faqat navbatdagi bosqichga o'tish mumkin"
+                        }
+                        style={{
+                          backgroundColor: isPassed ? st.color : "#e2e8f0",
+                          color: isPassed ? "#ffffff" : "#475569",
+                        }}
+                        className={`chevron-step flex min-w-[115px] flex-1 items-center justify-center px-3 py-2 text-xs font-semibold transition ${
+                          canClick ? "cursor-pointer hover:opacity-90" : "cursor-not-allowed opacity-80"
+                        }`}
+                      >
+                        <span className="truncate">{lang === "ru" ? st.shortRu : st.shortUz}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <Info className="h-3.5 w-3.5 text-blue-500" />
+                  {isAutopilot
+                    ? lang === "ru"
+                      ? "🤖 Кандидат на автопилоте Telegram-бота — этапы переключаются автоматически."
+                      : "🤖 Nomzod Telegram bot avtopilotida — bosqichlar avtomatik boshqariladi (rekruter o'zgartira olmaydi)."
+                    : t.autoBotHint}
+                </p>
+              </>
+            );
+          })()}
         </div>
 
         {/* Clean 2-Column Body */}

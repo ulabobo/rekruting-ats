@@ -525,6 +525,26 @@ export async function moveApplicationStage(params: {
 
   if (targetIdx === -1) return { ok: false, error: "Noto'g'ri bosqich." };
 
+  if (["test_kuni", "offer", "hujjat_lms"].includes(app.current_stage)) {
+    return {
+      ok: false,
+      error:
+        params.lang === "ru"
+          ? "Кандидат на автопилоте бота! Ручное изменение этапа запрещено."
+          : "Nomzod bot avtopilotida! Bosqichni qo'lda o'zgartirish mumkin emas.",
+    };
+  }
+
+  if (targetIdx !== currentIdx + 1) {
+    return {
+      ok: false,
+      error:
+        params.lang === "ru"
+          ? "Можно перевести только на следующий этап по порядку!"
+          : "Faqat navbatdagi keyingi bosqichga o'tkazish mumkin (sakrash yoki orqaga qaytarish mumkin emas)!",
+    };
+  }
+
   if (targetIdx > currentIdx && currentStageDef?.requiresEvaluation) {
     const { count } = await sb
       .from("ats_evaluations")

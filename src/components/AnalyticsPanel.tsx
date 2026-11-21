@@ -1,24 +1,103 @@
 "use client";
 
-import React from "react";
-import { BarChart3, Calendar, MoreHorizontal, TrendingUp } from "lucide-react";
-import { AtsDatabase, TrackType } from "@/types/ats";
+import React, { useState } from "react";
+import {
+  Award,
+  BarChart3,
+  Calendar,
+  Clock,
+  MoreHorizontal,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { AtsDatabase, Application, TrackType } from "@/types/ats";
 import { TRACK_CONFIGS } from "@/lib/stages";
 
 interface AnalyticsPanelProps {
   db: AtsDatabase;
 }
 
+const STAGE_RANK: Record<string, number> = {
+  otklik: 1,
+  call_screen: 2,
+  rahbar_suhbati: 3,
+  test_kuni: 4,
+  amaliy_topshiriq: 4,
+  offer: 5,
+  hujjat_lms: 6,
+};
+
+function calcAvgTimeToFill(apps: Application[]): string {
+  const hired = apps.filter((a) => a.status === "hired" && a.lmsTransferredAt);
+  if (hired.length === 0) return "—";
+  const totalDays = hired.reduce((sum, a) => {
+    const start = new Date(a.appliedAt).getTime();
+    const end = new Date(a.lmsTransferredAt!).getTime();
+    return sum + Math.max(0.1, (end - start) / 86400000);
+  }, 0);
+  return `${(totalDays / hired.length).toFixed(1)} kun`;
+}
+
 export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
-  const totalApps = db.applications.length;
-  const hiredApps = db.applications.filter((a) => a.status === "hired").length;
-  const offeredApps = db.applications.filter(
-    (a) => a.status === "offered" || a.status === "hired"
-  ).length;
+  const [selectedRecruiterId, setSelectedRecruiterId] = useState<string>("all");
+
+  const filteredApps =
+    selectedRecruiterId === "all"
+      ? db.applications
+      : db.applications.filter((a) => a.assignedRecruiterId === selectedRecruiterId);
+
+  const totalApps = filteredApps.length;
+  const hiredApps = filteredApps.filter((a) => a.status === "hired").length;
+  const conversionPct = totalApps > 0 ? Math.round((hiredApps / totalApps) * 100) : 0;
+  const avgTimeToFill = calcAvgTimeToFill(filteredApps);
+
+  const hasReachedStage = (a: Application, minRank: number) => {
+    if (a.status === "hired") return true;
+    return (STAGE_RANK[a.currentStage] || 1) >= minRank;
+  };
+
+  const funnelSteps = [
+    {
+      label: "1. Qiziqish bildirganlar",
+      count: totalApps,
+      color: "from-slate-600 to-slate-700",
+    },
+    {
+      label: "2. Telefon suhbati",
+      count: filteredApps.filter((a) => hasReachedStage(a, 2)).length,
+      color: "from-amber-500 to-orange-500",
+    },
+    {
+      label: "3. Rahbar bilan suhbat",
+      count: filteredApps.filter((a) => hasReachedStage(a, 3)).length,
+      color: "from-emerald-500 to-teal-500",
+    },
+    {
+      label: "4. 1 kunlik sinov kuni",
+      count: filteredApps.filter((a) => hasReachedStage(a, 4)).length,
+      color: "from-violet-500 to-purple-600",
+    },
+    {
+      label: "5. Ish taklifi (Offer)",
+      count: filteredApps.filter((a) => hasReachedStage(a, 5) || a.status === "offered").length,
+      color: "from-blue-500 to-indigo-600",
+    },
+    {
+      label: "6. Hujjatlar yuborildi",
+      count: filteredApps.filter((a) => hasReachedStage(a, 6)).length,
+      color: "from-cyan-600 to-teal-700",
+    },
+    {
+      label: "7. Ishga qabul qilindi (Sheets)",
+      count: hiredApps,
+      color: "from-emerald-600 to-green-700",
+    },
+  ];
 
   const sourcesMap = new Map<string, number>();
-  db.candidates.forEach((c) => {
-    sourcesMap.set(c.source, (sourcesMap.get(c.source) || 0) + 1);
+  filteredApps.forEach((a) => {
+    const c = db.candidates.find((x) => x.id === a.candidateId);
+    if (c) sourcesMap.set(c.source, (sourcesMap.get(c.source) || 0) + 1);
   });
 
   const tracks: TrackType[] = [
@@ -28,90 +107,101 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
     "ommaviy_yollash",
   ];
 
-  const funnelCounts = [
-    { label: "Jami arizalar (Qiziqish)", count: totalApps, pct: 100 },
-    {
-      label: "Telefon suhbati / Baholangan",
-      count: db.applications.filter((a) => a.currentStage !== "otklik").length,
-      pct: totalApps
-        ? Math.round(
-            (db.applications.filter((a) => a.currentStage !== "otklik").length /
-              totalApps) *
-              100
-          )
-        : 0,
-    },
-    {
-      label: "Rahbar bilan suhbat",
-      count: db.applications.filter((a) =>
-        ["rahbar_suhbati", "test_kuni", "offer", "hujjat_lms"].includes(
-          a.currentStage
-        )
-      ).length,
-      pct: totalApps
-        ? Math.round(
-            (db.applications.filter((a) =>
-              ["rahbar_suhbati", "test_kuni", "offer", "hujjat_lms"].includes(
-                a.currentStage
-              )
-            ).length /
-              totalApps) *
-              100
-          )
-        : 0,
-    },
-    {
-      label: "Ish taklifi (Offer)",
-      count: offeredApps,
-      pct: totalApps ? Math.round((offeredApps / totalApps) * 100) : 0,
-    },
-    {
-      label: "O'qitishga topshirildi",
-      count: hiredApps,
-      pct: totalApps ? Math.round((hiredApps / totalApps) * 100) : 0,
-    },
-  ];
-
-  // Build 7-day calendar strip (arizalar + vakansiyalar)
+  // 7-kunlik kalendar: nechta ochildi (qizil) va nechtasi yopildi (yashil)
   const today = new Date();
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - 3 + i);
     const dayNames = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
-    const appsCount = db.applications.filter(
-      (a) => new Date(a.appliedAt).toDateString() === d.toDateString()
-    ).length;
-    const vacsCount = db.vacancies.filter(
-      (v) => new Date(v.approvedAt).toDateString() === d.toDateString()
-    ).length;
+    const sameDay = (iso?: string) =>
+      iso ? new Date(iso).toDateString() === d.toDateString() : false;
+
+    const openedCount = db.vacancies
+      .filter((v) => sameDay(v.approvedAt))
+      .reduce((s, v) => s + v.headcount, 0);
+
+    const closedCount =
+      db.applications.filter((a) => a.status === "hired" && sameDay(a.lmsTransferredAt)).length;
+
     return {
       date: d.getDate(),
       dayName: dayNames[d.getDay()],
       isToday: i === 3,
-      count: appsCount + vacsCount,
+      openedCount,
+      closedCount,
     };
   });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-900">Analitika va KPI</h2>
-        <p className="text-xs text-slate-500">
-          Yo&apos;nalishlar kesimidagi jarayon, voronka konversiyasi va kalendar ko&apos;rsatkichlari
-        </p>
+      {/* Header + Recruiter Filter Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900">Analitika va Rekruter KPI</h2>
+          <p className="text-xs text-slate-500">
+            Rekruterlar kesimidagi vizual voronka, Time to Fill va kunlik ochilgan/yopilgan vakansiyalar
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xs">
+          <button
+            onClick={() => setSelectedRecruiterId("all")}
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+              selectedRecruiterId === "all"
+                ? "bg-[#5865f2] text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Umumiy holat
+          </button>
+          {db.users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => setSelectedRecruiterId(u.id)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                selectedRecruiterId === u.id
+                  ? "bg-[#5865f2] text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {u.fullName.split(" ")[0]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* 3-rasm uslubidagi Yorqin Ko'k & Chuqur Qora Yo'nalish Kartochkalari */}
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-xs">
+          <p className="text-[11px] font-semibold text-slate-400">Jami arizalar</p>
+          <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalApps}</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-xs">
+          <p className="text-[11px] font-semibold text-emerald-700">Ishga qabul qilindi</p>
+          <p className="mt-1 text-2xl font-extrabold text-emerald-700">{hiredApps}</p>
+        </div>
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 shadow-xs">
+          <p className="text-[11px] font-semibold text-blue-700">Umumiy konversiya</p>
+          <p className="mt-1 text-2xl font-extrabold text-blue-700">{conversionPct}%</p>
+        </div>
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-xs">
+          <p className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700">
+            <Clock className="h-3.5 w-3.5" /> Time to Fill (KPI)
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-indigo-700">{avgTimeToFill}</p>
+        </div>
+      </div>
+
+      {/* Yo'nalishlar Kartochkalari */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tracks.map((tr, idx) => {
           const cfg = TRACK_CONFIGS[tr];
-          const trApps = db.applications.filter((a) => a.track === tr);
+          const trApps = filteredApps.filter((a) => a.track === tr);
           const trVacs = db.vacancies.filter((v) => v.track === tr);
           const acceptedVacs = trVacs.filter(
             (v) => v.status === "accepted" || v.status === "closed"
           ).length;
 
-          // Jonli progress: nomzodlarning bosqichma-bosqich siljishi yoki qabul qilingan vakansiyalar
           let progress = 0;
           if (trApps.length > 0) {
             const totalPct = trApps.reduce((sum, a) => {
@@ -129,10 +219,7 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
             progress = Math.round((acceptedVacs / trVacs.length) * 100);
           }
 
-          const filledSegments = Math.max(
-            progress > 0 ? 1 : 0,
-            Math.round(progress / 10)
-          );
+          const filledSegments = Math.max(progress > 0 ? 1 : 0, Math.round(progress / 10));
           const isBlue = idx % 2 === 0;
 
           return (
@@ -154,7 +241,6 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
                 <span className="font-bold text-white">{progress}%</span>
               </div>
 
-              {/* 10-segment progress bar (3-rasmdagidek) */}
               <div className="mb-5 grid grid-cols-10 gap-1">
                 {Array.from({ length: 10 }, (_, sIdx) => (
                   <div
@@ -191,14 +277,19 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         })}
       </div>
 
-      {/* Calendar Strip (3-rasm pastki qismi uslubida) */}
+      {/* Kalendar: Qizil (ochildi) va Yashil (yopildi) */}
       <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
-        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex gap-6 text-xs font-bold">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-4 text-xs font-bold">
             <span className="border-b-2 border-slate-900 pb-3 -mb-3.5 text-slate-900">
               Kalendar (Haftalik oqim)
             </span>
-            <span className="text-slate-400">Jami arizalar: {totalApps}</span>
+            <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-bold text-rose-700">
+              ● Qizil: Ochildi
+            </span>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+              ● Yashil: Yopildi / Qabul qilindi
+            </span>
           </div>
           <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-[#1b64f2]">
             {today.toLocaleDateString("ru-RU")}
@@ -209,79 +300,146 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
           {weekDays.map((d, i) => (
             <div
               key={i}
-              className={`rounded-2xl py-3 transition ${
+              className={`rounded-2xl border p-2.5 transition ${
                 d.isToday
-                  ? "bg-[#eef4ff] text-[#1b64f2]"
-                  : "hover:bg-slate-50 text-slate-700"
+                  ? "border-blue-200 bg-[#eef4ff] text-[#1b64f2]"
+                  : "border-slate-100 text-slate-700 hover:bg-slate-50"
               }`}
             >
               <p className="text-base font-extrabold">{d.date}</p>
               <p className="text-[11px] text-slate-400">{d.dayName}</p>
-              <span
-                className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  d.count > 0
-                    ? "bg-[#1b64f2] text-white"
-                    : "bg-slate-100 text-slate-400"
-                }`}
-              >
-                {d.count} ta
-              </span>
+              <div className="mt-2 flex flex-col gap-1">
+                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                  +{d.openedCount} ochildi
+                </span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                  ✓{d.closedCount} yopildi
+                </span>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Funnel Conversion & Sources */}
+      {/* Visual Funnel + Sources */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
             <BarChart3 className="h-4 w-4 text-[#1b64f2]" />
-            Voronka konversiyasi
+            Vizual Voronka (Funnel)
           </h3>
-          <div className="space-y-3">
-            {funnelCounts.map((step) => (
-              <div key={step.label}>
-                <div className="mb-1 flex justify-between text-xs">
-                  <span className="font-medium text-slate-700">{step.label}</span>
-                  <span className="font-bold text-slate-900">
-                    {step.count} ({step.pct}%)
-                  </span>
+          <div className="flex flex-col items-center space-y-2.5">
+            {funnelSteps.map((step) => {
+              const pct = totalApps > 0 ? Math.round((step.count / totalApps) * 100) : 0;
+              const widthPct = totalApps > 0 ? Math.max(24, pct) : 100;
+              return (
+                <div key={step.label} className="w-full">
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="font-semibold text-slate-700">{step.label}</span>
+                    <span className="font-bold text-slate-900">
+                      {step.count} ta ({pct}%)
+                    </span>
+                  </div>
+                  <div className="flex justify-center">
+                    <div
+                      className={`flex h-7 items-center justify-center rounded-xl bg-gradient-to-r ${step.color} text-[11px] font-bold text-white shadow-xs transition-all duration-500`}
+                      style={{ width: `${widthPct}%` }}
+                    >
+                      {step.count}
+                    </div>
+                  </div>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-[#1b64f2] transition-all"
-                    style={{ width: `${step.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
             <TrendingUp className="h-4 w-4 text-emerald-600" />
-            Manbalar samaradorligi
+            Nomzod manbalari (Sourcing)
           </h3>
-          <div className="space-y-2.5">
-            {sourcesMap.size === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400">
-                Hozircha nomzodlar kiritilmagan
-              </p>
-            ) : (
-              Array.from(sourcesMap.entries()).map(([source, count]) => (
-                <div
-                  key={source}
-                  className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-xs"
-                >
-                  <span className="font-semibold text-slate-800">{source}</span>
-                  <span className="rounded-full bg-blue-100 px-3 py-0.5 font-bold text-[#1b64f2]">
-                    {count} nomzod
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+          {sourcesMap.size === 0 ? (
+            <p className="py-8 text-center text-xs text-slate-400">Hali ma&apos;lumot yo&apos;q</p>
+          ) : (
+            <div className="space-y-3">
+              {Array.from(sourcesMap.entries()).map(([src, cnt]) => {
+                const pct = totalApps ? Math.round((cnt / totalApps) * 100) : 0;
+                return (
+                  <div key={src}>
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span className="font-medium text-slate-700">{src}</span>
+                      <span className="font-bold text-slate-900">
+                        {cnt} ({pct}%)
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Rekruterlar kesimidagi batafsil KPI jadvali */}
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
+          <Users className="h-4 w-4 text-[#5865f2]" />
+          Rekruterlar kesimidagi natijalar va Time to Fill KPI
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="pb-2.5 font-semibold">Rekruter</th>
+                <th className="pb-2.5 font-semibold">Qiziqish</th>
+                <th className="pb-2.5 font-semibold">Qo&apos;ng&apos;iroq</th>
+                <th className="pb-2.5 font-semibold">Rahbar suhbati</th>
+                <th className="pb-2.5 font-semibold">Sinov kuni</th>
+                <th className="pb-2.5 font-semibold">Ish taklifi</th>
+                <th className="pb-2.5 font-semibold">Hujjatlar</th>
+                <th className="pb-2.5 font-semibold text-emerald-700">Ishga qabul qilindi</th>
+                <th className="pb-2.5 font-semibold text-indigo-700">Time to Fill</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {db.users.map((u) => {
+                const uApps = db.applications.filter((a) => a.assignedRecruiterId === u.id);
+                const uHired = uApps.filter((a) => a.status === "hired").length;
+                return (
+                  <tr
+                    key={u.id}
+                    onClick={() => setSelectedRecruiterId(u.id)}
+                    className="cursor-pointer transition hover:bg-blue-50/40"
+                  >
+                    <td className="py-3 font-bold text-slate-900">{u.fullName}</td>
+                    <td className="py-3">{uApps.length}</td>
+                    <td className="py-3">{uApps.filter((a) => hasReachedStage(a, 2)).length}</td>
+                    <td className="py-3">{uApps.filter((a) => hasReachedStage(a, 3)).length}</td>
+                    <td className="py-3">{uApps.filter((a) => hasReachedStage(a, 4)).length}</td>
+                    <td className="py-3">
+                      {uApps.filter((a) => hasReachedStage(a, 5) || a.status === "offered").length}
+                    </td>
+                    <td className="py-3">{uApps.filter((a) => hasReachedStage(a, 6)).length}</td>
+                    <td className="py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-700">
+                        <Award className="h-3 w-3" /> {uHired}
+                      </span>
+                    </td>
+                    <td className="py-3 font-bold text-indigo-700">
+                      {calcAvgTimeToFill(uApps)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

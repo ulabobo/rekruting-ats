@@ -531,14 +531,24 @@ export async function handleOnboardingMessage(
       actorName: "Telegram Bot",
     });
 
+    const nowIso = new Date().toISOString();
     await sb
       .from("ats_onboarding_flows")
       .update({
         photo_3x4_file_id: photo.file_id,
         step: "completed",
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       })
       .eq("id", flow.id);
+
+    await sb
+      .from("ats_applications")
+      .update({
+        status: "hired",
+        current_stage: "hujjat_lms",
+        lms_transferred_at: nowIso,
+      })
+      .eq("id", flow.application_id);
 
     const { data: cand } = await sb
       .from("ats_candidates")

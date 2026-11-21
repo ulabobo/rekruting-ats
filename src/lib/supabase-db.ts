@@ -1603,10 +1603,22 @@ export async function syncErpStaffingRows(
     await sb.from("ats_vacancies").upsert(toUpsertVacs, { onConflict: "id" });
   }
   if (toCloseIds.length > 0) {
-    await sb
-      .from("ats_vacancies")
-      .update({ status: "closed" })
-      .in("id", toCloseIds);
+    for (const cid of toCloseIds) {
+      const { count } = await sb
+        .from("ats_applications")
+        .select("id", { count: "exact", head: true })
+        .eq("vacancy_id", cid);
+      const { data: vRow } = await sb
+        .from("ats_vacancies")
+        .select("filled_count")
+        .eq("id", cid)
+        .maybeSingle();
+      if ((!count || count === 0) && (!vRow?.filled_count || vRow.filled_count === 0)) {
+        await sb.from("ats_vacancies").delete().eq("id", cid);
+      } else {
+        await sb.from("ats_vacancies").update({ status: "closed" }).eq("id", cid);
+      }
+    }
   }
   if (toInsertNotifs.length > 0) {
     await sb.from("ats_notifications").insert(toInsertNotifs);

@@ -10,9 +10,12 @@ export type UserRoleType = "admin" | "recruiter";
 
 export type CandidateSource =
   | "Telegram bot"
-  | "Sayt"
+  | "Tanish"
   | "OLX"
+  | "Instagram"
+  | "Telegram kanal"
   | "hh.uz"
+  | "Sayt"
   | "LinkedIn"
   | "Tavsiya"
   | "Ichki nomzod"

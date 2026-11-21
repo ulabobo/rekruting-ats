@@ -9,7 +9,7 @@ import {
 import { sendTelegramMessage } from "@/lib/telegram";
 import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
 import { TRACK_CONFIGS } from "@/lib/stages";
-import { TrackType } from "@/types/ats";
+import { CandidateSource, TrackType } from "@/types/ats";
 
 const SHIFTS = ["1-smena (09:00–18:00)", "2-smena (14:00–23:00)", "2/2 smena", "To'liq kun (5/2)"];
 
@@ -33,6 +33,7 @@ type Step =
   | "illness"
   | "illnessNote"
   | "photo"
+  | "source"
   | "consent";
 
 interface SessionState {
@@ -65,6 +66,7 @@ const STEP_ORDER: Step[] = [
   "lastWork",
   "illness",
   "photo",
+  "source",
   "consent",
 ];
 
@@ -335,6 +337,24 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
         String(chatId),
         `${hdr}📸 Iltimos, o'zingizning aniq yuz rasmingizni (selfi yoki 3x4 rasm) yuboring:`
       );
+    case "source":
+      return tgCall(token, "sendMessage", {
+        chat_id: chatId,
+        text: `${hdr}📢 Biz haqimizda qayerdan eshitdingiz / vakansiyani qayerda ko'rdingiz?`,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "👥 Tanish", callback_data: "q:source:Tanish" },
+              { text: "📢 OLX", callback_data: "q:source:OLX" },
+            ],
+            [
+              { text: "📸 Instagram", callback_data: "q:source:Instagram" },
+              { text: "✈️ Telegram kanal", callback_data: "q:source:Telegram kanal" },
+            ],
+            [{ text: "💼 hh.uz", callback_data: "q:source:hh.uz" }],
+          ],
+        },
+      });
     case "consent": {
       const a = st.answers;
       const summary =
@@ -356,6 +376,7 @@ async function askNextQuestion(token: string, chatId: number, st: SessionState) 
         `⏳ <b>Umumiy tajriba:</b> ${a.totalExp || "—"}\n` +
         `🏭 <b>Oxirgi ish joyi:</b> ${a.lastWork || "—"}\n` +
         `🏥 <b>Sog'liq / Cheklov:</b> ${a.illness || "Yo'q"}\n` +
+        `📢 <b>Manba:</b> ${a.source || "—"}\n` +
         `📸 <b>Foto:</b> ${st.avatarUrl ? "✅ Yuklandi" : "—"}\n\n` +
         `Ma'lumotlarni tasdiqlab, yuborishga ruxsat berasizmi?`;
       return tgCall(token, "sendMessage", {
@@ -698,6 +719,8 @@ export async function POST(req: NextRequest) {
         else if (field === "totalExp") st.step = "lastWork";
         else if (field === "illness") {
           st.step = val === "Ha" ? "illnessNote" : "photo";
+        } else if (field === "source") {
+          st.step = "consent";
         }
 
         await saveSession(chatId, st);
@@ -736,7 +759,7 @@ export async function POST(req: NextRequest) {
             phone: st.answers.phone,
             fullName,
             vacancyId: st.vacancyId,
-            source: "Telegram bot",
+            source: (st.answers.source as CandidateSource) || "Telegram bot",
             birthDate: st.answers.birthDate,
             gender: st.answers.gender,
             city: st.city,
@@ -876,7 +899,7 @@ export async function POST(req: NextRequest) {
       const photo = msg.photo[msg.photo.length - 1];
       if (st && st.step === "photo") {
         st.avatarUrl = `/api/telegram/file?file_id=${photo.file_id}`;
-        st.step = "consent";
+        st.step = "source";
         await saveSession(chatId, st);
         await askNextQuestion(token, chatId, st);
         return NextResponse.json({ ok: true });

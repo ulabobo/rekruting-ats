@@ -269,7 +269,7 @@ export default function AtsDashboard({
       <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
           <img
-            src="/logo.png?v=2"
+            src="/logo.png?v=3"
             alt="Rekruting ATS"
             className="h-9 w-9 rounded-xl object-cover shadow-sm"
           />

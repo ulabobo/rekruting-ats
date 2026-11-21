@@ -60,7 +60,7 @@ export default function LoginScreen({
       <div className="relative z-10 mb-6 flex w-full max-w-md items-center justify-between px-2">
         <div className="flex items-center gap-2.5 text-white">
           <img
-            src="/logo.png?v=2"
+            src="/logo.png?v=3"
             alt="Rekruting ATS"
             className="h-9 w-9 rounded-xl object-cover shadow-md"
           />

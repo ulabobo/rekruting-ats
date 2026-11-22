@@ -261,6 +261,19 @@ export interface SystemSettings {
   googleLastSyncAt?: string;
 }
 
+export interface BotFunnelEntry {
+  chatId: string;
+  username?: string;
+  firstName?: string;
+  lastStep: string;
+  furthestStep: string;
+  furthestRank: number;
+  status: "in_progress" | "completed" | "cancelled";
+  remindedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AtsDatabase {
   users: User[];
   massProjects: MassHiringProject[];
@@ -275,5 +288,6 @@ export interface AtsDatabase {
   erpStaffing: ErpStaffingRow[];
   integrationEvents: IntegrationEvent[];
   notifications: NotificationItem[];
+  botFunnel?: BotFunnelEntry[];
   settings: SystemSettings;
 }

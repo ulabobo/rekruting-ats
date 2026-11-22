@@ -656,6 +656,87 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         </div>
       </div>
 
+      {/* 🤖 Telegram Bot Voronkasi (Chiqib ketish nuqtalari) */}
+      {(() => {
+        const bf = (db.botFunnel || []).filter((x) => {
+          const ts = new Date(x.updatedAt).getTime();
+          return period === "all" || (ts >= bounds.start && ts <= bounds.end);
+        });
+        const totalStarted = bf.length;
+        const botSteps = [
+          { label: "/start bosdi", minRank: 1 },
+          { label: "Bo'sh ish o'rinlari", minRank: 2 },
+          { label: "Hudud tanladi", minRank: 3 },
+          { label: "Filial tanladi", minRank: 4 },
+          { label: "Smena / Savollar", minRank: 6 },
+          { label: "Telefon raqam", minRank: 8 },
+          { label: "Foto yukladi", minRank: 10 },
+          { label: "Manba / Tasdiqlash", minRank: 11 },
+          { label: "Anketani yubordi", minRank: 13 },
+        ];
+        const abandonedCount = bf.filter((x) => x.status === "in_progress" && x.furthestRank < 13).length;
+        const remindedCount = bf.filter((x) => Boolean(x.remindedAt)).length;
+        return (
+          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                  🤖 Telegram Bot Voronkasi (Chiqib ketish nuqtalari)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Botga kirganlardan nechtasi qaysi qadamgacha yetib kelgani (yengil 1-qator/user tahlil)
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-bold">
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                  Jami kirgan: {totalStarted}
+                </span>
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                  Yarim yo&apos;lda: {abandonedCount}
+                </span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                  Eslatma yuborildi: {remindedCount}
+                </span>
+              </div>
+            </div>
+            {totalStarted === 0 ? (
+              <p className="py-6 text-center text-xs text-slate-400">
+                Bot voronkasi ma&apos;lumotlari yangi kiruvchilardan boshlab avtomatik yig&apos;iladi.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-9">
+                {botSteps.map((st, i) => {
+                  const cnt = bf.filter((x) => x.furthestRank >= st.minRank).length;
+                  const pct = totalStarted > 0 ? Math.round((cnt / totalStarted) * 100) : 0;
+                  return (
+                    <div
+                      key={st.label}
+                      className={`rounded-2xl border p-3 text-center ${
+                        i === botSteps.length - 1
+                          ? "border-emerald-200 bg-emerald-50/70"
+                          : "border-slate-100 bg-slate-50/70"
+                      }`}
+                    >
+                      <p className="text-[10px] font-semibold text-slate-500">{st.label}</p>
+                      <p className="mt-1 text-lg font-extrabold text-slate-900">{cnt}</p>
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          i === botSteps.length - 1
+                            ? "bg-emerald-600 text-white"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {pct}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* 3D Trapezoid Funnel + Rejection Reasons */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="rounded-3xl border border-slate-100 bg-gradient-to-b from-slate-50/70 to-white p-6 shadow-xs lg:col-span-7">

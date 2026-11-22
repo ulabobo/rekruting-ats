@@ -120,6 +120,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     evtRes,
     notifRes,
     setRes,
+    botFunnelRes,
   ] = await Promise.all([
     sb.from("ats_users").select("id, login, password_hash, email, full_name, role, allowed_tracks, assigned_branches, position, created_at").order("created_at", { ascending: true }),
     sb.from("ats_mass_projects").select("*").order("created_at", { ascending: false }),
@@ -135,6 +136,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     sb.from("ats_integration_events").select("*").order("created_at", { ascending: false }).limit(100),
     sb.from("ats_notifications").select("*").order("created_at", { ascending: false }).limit(50),
     sb.from("ats_settings").select("*").eq("id", "default").maybeSingle(),
+    sb.from("ats_bot_funnel").select("*").order("updated_at", { ascending: false }).limit(500),
   ]);
 
   return {
@@ -302,6 +304,18 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       relatedApplicationId: n.related_application_id,
       createdAt: n.created_at,
     })),
+    botFunnel: (botFunnelRes.data || []).map((b) => ({
+      chatId: b.chat_id,
+      username: b.username || undefined,
+      firstName: b.first_name || undefined,
+      lastStep: b.last_step,
+      furthestStep: b.furthest_step,
+      furthestRank: b.furthest_rank,
+      status: b.status,
+      remindedAt: b.reminded_at || undefined,
+      createdAt: b.created_at,
+      updatedAt: b.updated_at,
+    })),
     settings: setRes.data?.data || {
       internalCandidateMinCategory: "2-toifa",
       internalCandidateMinTenureMonths: 6,
@@ -313,6 +327,70 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       offerTimerOfficeDays: 3,
     },
   };
+}
+
+const BOT_FUNNEL_RANK: Record<string, number> = {
+  start: 1,
+  vacancies_menu: 2,
+  region: 3,
+  branch: 4,
+  position: 5,
+  shift: 6,
+  personal: 7,
+  phone: 8,
+  details: 9,
+  photo: 10,
+  source: 11,
+  consent: 12,
+  completed: 13,
+};
+
+export async function trackBotFunnelStep(params: {
+  chatId: string | number;
+  username?: string;
+  firstName?: string;
+  step: string;
+  status?: "in_progress" | "completed" | "cancelled";
+}) {
+  try {
+    const sb = getSupabase();
+    const cid = String(params.chatId);
+    const rank = BOT_FUNNEL_RANK[params.step] || 1;
+    const { data: existing } = await sb
+      .from("ats_bot_funnel")
+      .select("furthest_rank, furthest_step, status")
+      .eq("chat_id", cid)
+      .maybeSingle();
+
+    const nextFurthestRank =
+      existing && existing.furthest_rank > rank ? existing.furthest_rank : rank;
+    const nextFurthestStep =
+      existing && existing.furthest_rank > rank ? existing.furthest_step : params.step;
+    const nextStatus =
+      params.status ||
+      (params.step === "completed"
+        ? "completed"
+        : existing?.status === "completed"
+        ? "completed"
+        : "in_progress");
+
+    await sb.from("ats_bot_funnel").upsert(
+      {
+        chat_id: cid,
+        username: params.username || null,
+        first_name: params.firstName || null,
+        last_step: params.step,
+        furthest_step: nextFurthestStep,
+        furthest_rank: nextFurthestRank,
+        status: nextStatus,
+        reminded_at: params.step === "start" || params.step === "completed" ? null : undefined,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "chat_id" }
+    );
+  } catch {
+    // bot ishlashiga xalaqit bermaslik uchun jim o'tadi
+  }
 }
 
 async function logAudit(entry: Omit<AuditLog, "id" | "createdAt">) {

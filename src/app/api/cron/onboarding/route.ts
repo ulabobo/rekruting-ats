@@ -19,10 +19,7 @@ export async function GET() {
       .select("*")
       .not("step", "in", '("completed","cancelled_timeout")');
 
-    if (!flows || flows.length === 0) {
-      return NextResponse.json({ ok: true, processed: 0 });
-    }
-
+    const activeFlows = flows || [];
     const { data: setRow } = await sb
       .from("ats_settings")
       .select("data")
@@ -43,7 +40,7 @@ export async function GET() {
     let remindersSent = 0;
     let timedOut = 0;
 
-    for (const flow of flows) {
+    for (const flow of activeFlows) {
       const { data: cand } = await sb
         .from("ats_candidates")
         .select("id, full_name")
@@ -177,13 +174,41 @@ export async function GET() {
       }
     }
 
+    // 4. Yarim yo'lda to'xtab qolgan bot foydalanuvchilariga 1 soatdan keyin bitta eslatma
+    let abandonedReminded = 0;
+    const oneHourAgoIso = new Date(nowMs - 3600000).toISOString();
+    const { data: abandoned } = await sb
+      .from("ats_bot_funnel")
+      .select("chat_id, first_name")
+      .eq("status", "in_progress")
+      .gte("furthest_rank", 2)
+      .is("reminded_at", null)
+      .lt("updated_at", oneHourAgoIso)
+      .limit(20);
+
+    for (const ab of abandoned || []) {
+      const r = await sendTelegramMessage(
+        ab.chat_id,
+        `👋 Salom${ab.first_name ? `, <b>${ab.first_name}</b>` : ""}!\n\n` +
+          `Anketangiz oxirigacha to'ldirilmay qoldi. Davom ettirish uchun oxirgi savolga javob yozing yoki pastdagi <b>«📋 Bo'sh ish o'rinlari»</b> tugmasini bosing — atigi 1 daqiqa vaqtingizni oladi!`
+      );
+      if (r.ok) {
+        await sb
+          .from("ats_bot_funnel")
+          .update({ reminded_at: new Date().toISOString() })
+          .eq("chat_id", ab.chat_id);
+        abandonedReminded++;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      processed: flows.length,
+      processed: activeFlows.length,
       morningSent,
       surveyStarted,
       remindersSent,
       timedOut,
+      abandonedReminded,
     });
   } catch (err) {
     return NextResponse.json(

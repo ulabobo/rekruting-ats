@@ -5,6 +5,7 @@ import {
   createReserveCandidate,
   getSupabase,
   normalizePhone,
+  trackBotFunnelStep,
 } from "@/lib/supabase-db";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
@@ -153,6 +154,18 @@ async function editOrSend(
 }
 
 async function askNextQuestion(token: string, chatId: number, st: SessionState) {
+  const funnelMap: Partial<Record<Step, string>> = {
+    hasExp: "shift",
+    firstName: "personal",
+    phone: "phone",
+    gender: "details",
+    photo: "photo",
+    source: "source",
+    consent: "consent",
+  };
+  if (funnelMap[st.step]) {
+    await trackBotFunnelStep({ chatId, step: funnelMap[st.step]! });
+  }
   const hdr = getProgressHeader(st.step);
   switch (st.step) {
     case "hasExp":
@@ -426,6 +439,13 @@ export async function POST(req: NextRequest) {
 
       if (data === "cancel") {
         await clearSession(chatId);
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "start",
+          status: "cancelled",
+        });
         await editOrSend(
           token,
           chatId,
@@ -504,6 +524,12 @@ export async function POST(req: NextRequest) {
       // 1. Viloyat tanlandi -> To'g'ridan-to'g'ri shu viloyatdagi Filiallar (Bosh ofis) chiqadi!
       if (data.startsWith("reg:")) {
         const region = data.replace("reg:", "");
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "region",
+        });
         const { data: vacs } = await sb
           .from("ats_vacancies")
           .select("*")
@@ -544,6 +570,12 @@ export async function POST(req: NextRequest) {
       // 2. Filial tanlandi -> Ochiq vakansiyalar + Passiv zaxira lavozimlari (rahbar lavozimlarisiz)
       if (data.startsWith("branch:")) {
         const branch = data.replace("branch:", "");
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "branch",
+        });
         const st = (await getSession(chatId)) || {
           mode: "apply",
           step: "idle",
@@ -799,6 +831,13 @@ export async function POST(req: NextRequest) {
         }
 
         await clearSession(chatId);
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "completed",
+          status: "completed",
+        });
         await editOrSend(
           token,
           chatId,
@@ -817,6 +856,12 @@ export async function POST(req: NextRequest) {
 
     if (text === "/start") {
       await clearSession(chatId);
+      await trackBotFunnelStep({
+        chatId,
+        username: msg.from?.username,
+        firstName: msg.from?.first_name,
+        step: "start",
+      });
       await tgCall(token, "sendMessage", {
         chat_id: chatId,
         text: "Assalomu alaykum! Rekruting ATS tizimiga xush kelibsiz.\nBo'sh ish o'rinlarini ko'rish uchun tugmani bosing:",
@@ -837,6 +882,12 @@ export async function POST(req: NextRequest) {
 
     if (text === "📋 Bo'sh ish o'rinlari") {
       await clearSession(chatId);
+      await trackBotFunnelStep({
+        chatId,
+        username: msg.from?.username,
+        firstName: msg.from?.first_name,
+        step: "vacancies_menu",
+      });
       // 6-band: Avvalgi anketa bor-yo'qligini tekshirish
       const { data: existingCand } = await sb
         .from("ats_candidates")

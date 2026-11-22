@@ -656,42 +656,116 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         </div>
       </div>
 
-      {/* 🤖 Telegram Bot Voronkasi (Chiqib ketish nuqtalari) */}
+      {/* 🤖 Telegram Bot Voronkasi (3D Spiral Infographic) */}
       {(() => {
         const bf = (db.botFunnel || []).filter((x) => {
           const ts = new Date(x.updatedAt).getTime();
           return period === "all" || (ts >= bounds.start && ts <= bounds.end);
         });
         const totalStarted = bf.length;
-        const botSteps = [
-          { label: "/start bosdi", minRank: 1 },
-          { label: "Bo'sh ish o'rinlari", minRank: 2 },
-          { label: "Hudud tanladi", minRank: 3 },
-          { label: "Filial tanladi", minRank: 4 },
-          { label: "Smena / Savollar", minRank: 6 },
-          { label: "Telefon raqam", minRank: 8 },
-          { label: "Foto yukladi", minRank: 10 },
-          { label: "Manba / Tasdiqlash", minRank: 11 },
-          { label: "Anketani yubordi", minRank: 13 },
-        ];
-        const abandonedCount = bf.filter((x) => x.status === "in_progress" && x.furthestRank < 13).length;
+        const abandonedCount = bf.filter(
+          (x) => x.status === "in_progress" && x.furthestRank < 13
+        ).length;
         const remindedCount = bf.filter((x) => Boolean(x.remindedAt)).length;
+
+        const spiralStages = [
+          {
+            num: "01",
+            title: "KIRISH",
+            sub: "/start va menyu",
+            minRank: 1,
+            pos: "top" as const,
+            color: "#f59e0b",
+            gradTop: "#fde047",
+            gradBot: "#d97706",
+            backColor: "#b45309",
+            height: 210,
+            x: 285,
+          },
+          {
+            num: "02",
+            title: "HUDUD / FILIAL",
+            sub: "Filial va lavozim",
+            minRank: 3,
+            pos: "bottom" as const,
+            color: "#0ea5a4",
+            gradTop: "#67e8f9",
+            gradBot: "#0e7490",
+            backColor: "#155e75",
+            height: 176,
+            x: 372,
+          },
+          {
+            num: "03",
+            title: "ANKETA",
+            sub: "Smena va telefon",
+            minRank: 6,
+            pos: "top" as const,
+            color: "#2563eb",
+            gradTop: "#60a5fa",
+            gradBot: "#1d4ed8",
+            backColor: "#1e40af",
+            height: 146,
+            x: 454,
+          },
+          {
+            num: "04",
+            title: "FOTO / MANBA",
+            sub: "Selfi va qayerdan",
+            minRank: 10,
+            pos: "bottom" as const,
+            color: "#8b5cf6",
+            gradTop: "#c4b5fd",
+            gradBot: "#6d28d9",
+            backColor: "#5b21b6",
+            height: 118,
+            x: 530,
+          },
+          {
+            num: "05",
+            title: "YUBORILDI",
+            sub: "Tayyor anketa",
+            minRank: 13,
+            pos: "top" as const,
+            color: "#e11d48",
+            gradTop: "#fb7185",
+            gradBot: "#be123c",
+            backColor: "#9f1239",
+            height: 92,
+            x: 602,
+          },
+        ].map((st) => {
+          const count = bf.filter((x) => x.furthestRank >= st.minRank).length;
+          const pct = totalStarted > 0 ? Math.round((count / totalStarted) * 100) : 0;
+          return { ...st, count, pct };
+        });
+
+        const completedCount = spiralStages[4].count;
+        const completedPct = spiralStages[4].pct;
+
         return (
-          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
-                  🤖 Telegram Bot Voronkasi (Chiqib ketish nuqtalari)
+                <div className="mb-1.5 flex gap-1.5">
+                  <span className="h-1.5 w-4 rounded-full bg-amber-400" />
+                  <span className="h-1.5 w-4 rounded-full bg-cyan-500" />
+                  <span className="h-1.5 w-4 rounded-full bg-blue-600" />
+                  <span className="h-1.5 w-4 rounded-full bg-violet-600" />
+                  <span className="h-1.5 w-4 rounded-full bg-rose-600" />
+                </div>
+                <h3 className="text-base font-extrabold tracking-tight text-slate-900">
+                  TELEGRAM BOT FUNNEL INFOGRAPHIC
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Botga kirganlardan nechtasi qaysi qadamgacha yetib kelgani (yengil 1-qator/user tahlil)
+                  Nomzodlarning botga kirishidan anketani yuborishigacha bo&apos;lgan jonli konversiya oqimi
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-[11px] font-bold">
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
                   Jami kirgan: {totalStarted}
                 </span>
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
                   Yarim yo&apos;lda: {abandonedCount}
                 </span>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
@@ -699,40 +773,156 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
                 </span>
               </div>
             </div>
-            {totalStarted === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400">
-                Bot voronkasi ma&apos;lumotlari yangi kiruvchilardan boshlab avtomatik yig&apos;iladi.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-9">
-                {botSteps.map((st, i) => {
-                  const cnt = bf.filter((x) => x.furthestRank >= st.minRank).length;
-                  const pct = totalStarted > 0 ? Math.round((cnt / totalStarted) * 100) : 0;
+
+            <div className="w-full overflow-x-auto">
+              <svg
+                viewBox="0 0 920 340"
+                className="mx-auto h-auto min-w-[740px] w-full max-w-5xl"
+                role="img"
+                aria-label="Telegram Bot Spiral Funnel"
+              >
+                <defs>
+                  <linearGradient id="inBelt" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fde68a" />
+                    <stop offset="55%" stopColor="#f59e0b" />
+                    <stop offset="100%" stopColor="#b45309" />
+                  </linearGradient>
+                  <linearGradient id="outBelt" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fda4af" />
+                    <stop offset="55%" stopColor="#e11d48" />
+                    <stop offset="100%" stopColor="#881337" />
+                  </linearGradient>
+                  {spiralStages.map((s) => (
+                    <linearGradient key={s.num} id={`grad-${s.num}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={s.gradTop} />
+                      <stop offset="100%" stopColor={s.gradBot} />
+                    </linearGradient>
+                  ))}
+                  <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="4" dy="8" stdDeviation="6" floodColor="#0f172a" floodOpacity="0.16" />
+                  </filter>
+                </defs>
+
+                {/* Incoming Left Ribbon */}
+                <rect x="0" y="160" width="295" height="24" rx="4" fill="url(#inBelt)" />
+                {/* Outgoing Right Ribbon */}
+                <rect x="635" y="160" width="285" height="24" rx="4" fill="url(#outBelt)" />
+
+                {/* Left Incoming People Icons */}
+                {[55, 115, 168, 212].map((px, i) => (
+                  <g key={px} transform={`translate(${px}, 122)`} fill="#334155" opacity={0.75 + i * 0.06}>
+                    <circle cx="10" cy="7" r="5" />
+                    <path d="M5 14 h10 l3 12 h-4 l-1.5 -6 v14 h-3 v-9 h-1 v9 h-3 v-14 l-2 6 h-3 z" />
+                  </g>
+                ))}
+                <text x="115" y="214" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="700">
+                  BOTGA KIRGANLAR
+                </text>
+                <text x="115" y="234" textAnchor="middle" fill="#0f172a" fontSize="18" fontWeight="800">
+                  {totalStarted} nafar
+                </text>
+
+                {/* Right Target / Completed Section */}
+                <g transform="translate(765, 112)">
+                  <circle cx="24" cy="24" r="20" fill="none" stroke="#e11d48" strokeWidth="3" />
+                  <circle cx="24" cy="24" r="12" fill="none" stroke="#e11d48" strokeWidth="2.5" />
+                  <circle cx="24" cy="24" r="4.5" fill="#e11d48" />
+                  <path d="M24 24 L42 6 M36 6 L42 6 L42 12" stroke="#0f172a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                </g>
+                <text x="790" y="214" textAnchor="middle" fill="#be123c" fontSize="11" fontWeight="800">
+                  YAKUNIY KONVERSIYA
+                </text>
+                <text x="790" y="236" textAnchor="middle" fill="#0f172a" fontSize="20" fontWeight="900">
+                  {completedCount} ta ({completedPct}%)
+                </text>
+
+                {/* 5 3D Spiral Ribbon Loops */}
+                {spiralStages.map((s) => {
+                  const cy = 172;
+                  const topY = cy - s.height / 2;
+                  const botY = cy + s.height / 2;
+                  const rx = 28;
                   return (
-                    <div
-                      key={st.label}
-                      className={`rounded-2xl border p-3 text-center ${
-                        i === botSteps.length - 1
-                          ? "border-emerald-200 bg-emerald-50/70"
-                          : "border-slate-100 bg-slate-50/70"
-                      }`}
-                    >
-                      <p className="text-[10px] font-semibold text-slate-500">{st.label}</p>
-                      <p className="mt-1 text-lg font-extrabold text-slate-900">{cnt}</p>
-                      <span
-                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          i === botSteps.length - 1
-                            ? "bg-emerald-600 text-white"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
+                    <g key={s.num}>
+                      {/* Back dark spiral connector */}
+                      <path
+                        d={`M ${s.x + 26} ${topY + 6} C ${s.x + 62} ${topY + 6}, ${s.x + 62} ${botY - 6}, ${s.x + 32} ${botY - 6}`}
+                        fill="none"
+                        stroke={s.backColor}
+                        strokeWidth="22"
+                        strokeLinecap="round"
+                        opacity="0.88"
+                      />
+                      {/* Front 3D ribbon loop */}
+                      <path
+                        d={`M ${s.x + rx} ${topY} C ${s.x - 16} ${topY}, ${s.x - 16} ${botY}, ${s.x + rx} ${botY} L ${s.x + rx + 26} ${botY} C ${s.x + 10} ${botY}, ${s.x + 10} ${topY}, ${s.x + rx + 26} ${topY} Z`}
+                        fill={`url(#grad-${s.num})`}
+                        filter="url(#softShadow)"
+                      />
+                      {/* Step Number on Ribbon */}
+                      <text
+                        x={s.x + 15}
+                        y={cy + 7}
+                        textAnchor="middle"
+                        fill="#ffffff"
+                        fontSize="20"
+                        fontWeight="900"
+                        style={{ textShadow: "0 2px 6px rgba(0,0,0,0.28)" }}
                       >
-                        {pct}%
-                      </span>
-                    </div>
+                        {s.num}
+                      </text>
+
+                      {/* Alternating Top / Bottom Callout */}
+                      {s.pos === "top" ? (
+                        <g>
+                          <circle cx={s.x + 28} cy={topY - 18} r="5.5" fill={s.color} />
+                          <text
+                            x={s.x + 38}
+                            y={topY - 14}
+                            fill={s.color}
+                            fontSize="12"
+                            fontWeight="900"
+                          >
+                            {s.title}
+                          </text>
+                          <text
+                            x={s.x + 38}
+                            y={topY + 1}
+                            fill="#334155"
+                            fontSize="11"
+                            fontWeight="700"
+                          >
+                            {s.count} ta ({s.pct}%)
+                          </text>
+                        </g>
+                      ) : (
+                        <g>
+                          <circle cx={s.x + 28} cy={botY + 20} r="5.5" fill={s.color} />
+                          <text
+                            x={s.x + 38}
+                            y={botY + 24}
+                            fill={s.color}
+                            fontSize="12"
+                            fontWeight="900"
+                          >
+                            {s.title}
+                          </text>
+                          <text
+                            x={s.x + 38}
+                            y={botY + 39}
+                            fill="#334155"
+                            fontSize="11"
+                            fontWeight="700"
+                          >
+                            {s.count} ta ({s.pct}%)
+                          </text>
+                        </g>
+                      )}
+                    </g>
                   );
                 })}
-              </div>
-            )}
+              </svg>
+            </div>
           </div>
         );
       })()}

@@ -979,6 +979,49 @@ export default function AdminSettingsPanel({
               </label>
             </div>
 
+            <div className="col-span-2 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <p className="font-bold text-slate-800">
+                  📊 Product Analytics (PostHog + Yandex Metrica)
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Kalitlarni kiriting va «Saqlash» bosing — darhol ishga tushadi (kod o&apos;zgartirish shart emas)
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block font-semibold text-slate-700">
+                  PostHog Project API Key
+                </label>
+                <input
+                  value={db.settings.posthogKey || ""}
+                  onChange={(e) =>
+                    onUpdateDb({
+                      ...db,
+                      settings: { ...db.settings, posthogKey: e.target.value },
+                    })
+                  }
+                  placeholder="phc_xxxxxxxxxxxxxxxxxxxx"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block font-semibold text-slate-700">
+                  Yandex Metrica Counter ID
+                </label>
+                <input
+                  value={db.settings.yandexMetricaId || ""}
+                  onChange={(e) =>
+                    onUpdateDb({
+                      ...db,
+                      settings: { ...db.settings, yandexMetricaId: e.target.value },
+                    })
+                  }
+                  placeholder="98765432"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs"
+                />
+              </div>
+            </div>
+
             <div className="col-span-2 pt-2">
               <p className="mb-2 font-bold text-slate-800">
                 {lang === "ru"

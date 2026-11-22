@@ -259,6 +259,9 @@ export interface SystemSettings {
   googleSpreadsheetId?: string;
   googleSpreadsheetUrl?: string;
   googleLastSyncAt?: string;
+  posthogKey?: string;
+  posthogHost?: string;
+  yandexMetricaId?: string;
 }
 
 export interface BotFunnelEntry {

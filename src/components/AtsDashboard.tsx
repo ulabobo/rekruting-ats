@@ -37,6 +37,7 @@ import AnalyticsPanel from "@/components/AnalyticsPanel";
 import VacanciesPanel from "@/components/VacanciesPanel";
 import AllCandidatesPanel from "@/components/AllCandidatesPanel";
 import AdminSettingsPanel from "@/components/AdminSettingsPanel";
+import AnalyticsScripts from "@/components/AnalyticsScripts";
 import ParticleBackground from "@/components/ParticleBackground";
 import FilterPopover, { FilterState } from "@/components/FilterPopover";
 import {
@@ -265,6 +266,7 @@ export default function AtsDashboard({
       }}
     >
       <ParticleBackground />
+      <AnalyticsScripts settings={db.settings} />
       {/* Sidebar - Clean Frosted White matching Login Design */}
       <aside className="relative z-10 flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">

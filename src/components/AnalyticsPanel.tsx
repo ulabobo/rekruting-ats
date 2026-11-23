@@ -21,6 +21,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Application, AtsDatabase, TrackType } from "@/types/ats";
 import { TRACK_CONFIGS } from "@/lib/stages";
+import CandidateAnalyticsPanel from "@/components/CandidateAnalyticsPanel";
 
 interface AnalyticsPanelProps {
   db: AtsDatabase;
@@ -81,6 +82,7 @@ function calcAvgDays(pairs: { start?: string; end?: string }[]): { label: string
 }
 
 export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
+  const [analyticsTab, setAnalyticsTab] = useState<"recruiting" | "candidates">("recruiting");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -603,6 +605,38 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         </div>
       </div>
 
+      {/* Analytics Sub-Tab Switcher: Recruiting KPI vs Candidate Demographics BI */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setAnalyticsTab("recruiting")}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition ${
+            analyticsTab === "recruiting"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" />
+          Rekruting, Voronka va KPI
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnalyticsTab("candidates")}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition ${
+            analyticsTab === "candidates"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          Nomzodlar analitikasi (Demografiya &amp; O&apos;zbekiston xaritasi)
+        </button>
+      </div>
+
+      {analyticsTab === "candidates" ? (
+        <CandidateAnalyticsPanel db={db} filteredApps={filteredApps} />
+      ) : (
+        <>
       {/* 6 Executive KPI Cards */}
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -1292,6 +1326,8 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
           }
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

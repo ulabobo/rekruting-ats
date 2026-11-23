@@ -499,6 +499,37 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      if (data === "resume_anketa") {
+        const st = await getSession(chatId);
+        if (st && st.step && st.step !== "idle") {
+          await sendTelegramMessage(
+            String(chatId),
+            "✅ <b>Ajoyib!</b> To'xtagan joyingizdan davom etamiz:"
+          );
+          await askNextQuestion(token, chatId, st);
+          return NextResponse.json({ ok: true });
+        }
+        const { data: allVacs } = await sb.from("ats_vacancies").select("region");
+        const regions = Array.from(
+          new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
+        ).filter(
+          (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
+        ) as string[];
+        await editOrSend(
+          token,
+          chatId,
+          msgId,
+          "✅ <b>Davom etamiz!</b> Qaysi hududda ishlamoqchisiz? Hududni tanlang:",
+          {
+            inline_keyboard: [
+              ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
+              [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
+            ],
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       if (data === "back:reg") {
         const { data: allVacs } = await sb.from("ats_vacancies").select("region");
         const regions = Array.from(

@@ -174,28 +174,56 @@ export async function GET() {
       }
     }
 
-    // 4. Yarim yo'lda to'xtab qolgan bot foydalanuvchilariga 10 daqiqadan keyin tez eslatma
+    // 4. Yarim yo'lda to'xtab qolganlarga 2 bosqichli aqlli eslatma (10 daqiqa + 4 soat) + inline "Davom ettirish" tugmasi
     let abandonedReminded = 0;
     const tenMinAgoIso = new Date(nowMs - 10 * 60 * 1000).toISOString();
+    const fourHoursAgoMs = nowMs - 4 * 60 * 60 * 1000;
+
     const { data: abandoned } = await sb
       .from("ats_bot_funnel")
-      .select("chat_id, first_name")
+      .select("chat_id, first_name, furthest_rank, reminded_at, reminder_count, updated_at")
       .eq("status", "in_progress")
       .gte("furthest_rank", 2)
-      .is("reminded_at", null)
       .lt("updated_at", tenMinAgoIso)
-      .limit(20);
+      .limit(40);
 
     for (const ab of abandoned || []) {
-      const r = await sendTelegramMessage(
-        ab.chat_id,
-        `👋 Salom${ab.first_name ? `, <b>${ab.first_name}</b>` : ""}!\n\n` +
-          `Anketangiz oxirigacha to'ldirilmay qoldi. Davom ettirish uchun oxirgi savolga javob yozing yoki pastdagi <b>«📋 Bo'sh ish o'rinlari»</b> tugmasini bosing — atigi 1 daqiqa vaqtingizni oladi!`
-      );
+      const remCount = Number(ab.reminder_count || (ab.reminded_at ? 1 : 0));
+      if (remCount >= 2) continue;
+
+      // 1-eslatma: 10 daqiqadan keyin; 2-eslatma: 1-eslatmadan 4 soat o'tgach
+      if (remCount === 1) {
+        const lastRemMs = ab.reminded_at ? new Date(ab.reminded_at).getTime() : 0;
+        if (!lastRemMs || lastRemMs > fourHoursAgoMs) continue;
+      }
+
+      const pct = Math.min(90, Math.max(25, Math.round((Number(ab.furthest_rank || 3) / 13) * 100)));
+      const msgText =
+        remCount === 0
+          ? `👋 Salom${ab.first_name ? `, <b>${ab.first_name}</b>` : ""}!\n\n` +
+            `Anketangizning <b>${pct}% qismi tayyor</b> — yakunlash uchun atigi 1 daqiqa qoldi.\n` +
+            `Pastdagi tugmani bosing va to'xtagan savolingizdan darhol davom eting:`
+          : `🔥 <b>${ab.first_name || "Hurmatli nomzod"}</b>, vakansiyaga qabul davom etmoqda!\n\n` +
+            `Anketangiz <b>${pct}% to'ldirilgan</b> holda saqlanib turibdi. Joylar soni cheklangan — hoziroq 1 bosishda yakunlab yuboring:`;
+
+      const r = await sendTelegramMessage(ab.chat_id, msgText, {
+        inline_keyboard: [
+          [
+            {
+              text: remCount === 0 ? "▶️ Anketani davom ettirish" : "▶️ Hozir yakunlash (1 daqiqa)",
+              callback_data: "resume_anketa",
+            },
+          ],
+        ],
+      });
+
       if (r.ok) {
         await sb
           .from("ats_bot_funnel")
-          .update({ reminded_at: new Date().toISOString() })
+          .update({
+            reminded_at: new Date().toISOString(),
+            reminder_count: remCount + 1,
+          })
           .eq("chat_id", ab.chat_id);
         abandonedReminded++;
       }

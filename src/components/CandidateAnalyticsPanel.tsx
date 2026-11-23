@@ -14,168 +14,12 @@ import {
 } from "lucide-react";
 import { AtsDatabase, Candidate, Application } from "@/types/ats";
 import { TRACK_CONFIGS } from "@/lib/stages";
+import { UZ_MAP_VIEWBOX, UZ_REGIONS, UzRegionDef } from "@/lib/uzbekistan-map";
 
 interface CandidateAnalyticsPanelProps {
   db: AtsDatabase;
   filteredApps: Application[];
 }
-
-interface RegionDef {
-  id: string;
-  name: string;
-  shortName: string;
-  keywords: string[];
-  cx: number;
-  cy: number;
-  path: string;
-}
-
-// 14 Regions of Uzbekistan — clean stylized geographic SVG layout (viewBox 0 0 640 400)
-const UZ_REGIONS: RegionDef[] = [
-  {
-    id: "qoraqalpogiston",
-    name: "Qoraqalpog'iston",
-    shortName: "Qoraqalpog'iston",
-    keywords: ["qoraqalpog", "nukus", "karakalpak", "qo'ng'irot", "beruniy", "to'rtko'l"],
-    cx: 130,
-    cy: 135,
-    path: "M24,62 L145,42 L205,78 L228,158 L195,212 L135,210 L82,226 L36,182 L18,118 Z",
-  },
-  {
-    id: "xorazm",
-    name: "Xorazm",
-    shortName: "Xorazm",
-    keywords: ["xorazm", "urganch", "xiva", "хорезм", "ургенч"],
-    cx: 185,
-    cy: 222,
-    path: "M138,212 L195,212 L226,232 L204,256 L154,248 Z",
-  },
-  {
-    id: "navoiy",
-    name: "Navoiy",
-    shortName: "Navoiy",
-    keywords: ["navoiy", "navoi", "zarafshon", "uchquduq", "навои"],
-    cx: 295,
-    cy: 188,
-    path: "M205,78 L315,105 L368,156 L362,230 L292,248 L228,220 L228,158 Z",
-  },
-  {
-    id: "buxoro",
-    name: "Buxoro",
-    shortName: "Buxoro",
-    keywords: ["buxoro", "bukhara", "g'ijduvon", "kogon", "бухара"],
-    cx: 274,
-    cy: 276,
-    path: "M204,256 L228,220 L292,248 L334,274 L305,318 L244,310 L212,286 Z",
-  },
-  {
-    id: "samarqand",
-    name: "Samarqand",
-    shortName: "Samarqand",
-    keywords: ["samarqand", "samarkand", "kattaqo'rg'on", "urgut", "самарканд"],
-    cx: 374,
-    cy: 266,
-    path: "M334,242 L396,235 L422,268 L398,298 L334,288 Z",
-  },
-  {
-    id: "qashqadaryo",
-    name: "Qashqadaryo",
-    shortName: "Qashqadaryo",
-    keywords: [
-      "qashqadaryo",
-      "qarshi",
-      "shahrisabz",
-      "koson",
-      "kitob",
-      "muborak",
-      "g'uzor",
-      "yakkabog",
-      "qamashi",
-      "chiroqchi",
-      "nishon",
-      "kasbi",
-      "mirishkor",
-      "dehqonobod",
-      "кашкадарья",
-      "карши",
-    ],
-    cx: 368,
-    cy: 322,
-    path: "M305,318 L334,288 L398,298 L422,324 L388,354 L322,348 Z",
-  },
-  {
-    id: "surxondaryo",
-    name: "Surxondaryo",
-    shortName: "Surxondaryo",
-    keywords: ["surxondaryo", "termiz", "denov", "sherobod", "boysun", "сурхандарья", "термез"],
-    cx: 432,
-    cy: 356,
-    path: "M398,348 L422,324 L462,334 L464,382 L416,392 L388,368 Z",
-  },
-  {
-    id: "jizzax",
-    name: "Jizzax",
-    shortName: "Jizzax",
-    keywords: ["jizzax", "jizzakh", "zomin", "g'allaorol", "джизак"],
-    cx: 416,
-    cy: 232,
-    path: "M368,195 L436,192 L456,232 L422,268 L396,235 L362,230 Z",
-  },
-  {
-    id: "sirdaryo",
-    name: "Sirdaryo",
-    shortName: "Sirdaryo",
-    keywords: ["sirdaryo", "guliston", "yangiyer", "shirin", "сырдарья"],
-    cx: 460,
-    cy: 222,
-    path: "M436,192 L472,188 L484,234 L456,244 L450,224 Z",
-  },
-  {
-    id: "toshkent_vil",
-    name: "Toshkent viloyati",
-    shortName: "Toshkent vil.",
-    keywords: ["toshkent vil", "chirchiq", "olmaliq", "angren", "bekobod", "yangiyo'l", "ташкентская обл"],
-    cx: 498,
-    cy: 178,
-    path: "M452,154 L518,128 L552,164 L526,214 L484,218 L472,188 Z",
-  },
-  {
-    id: "toshkent_sh",
-    name: "Toshkent shahri",
-    shortName: "Toshkent sh.",
-    keywords: ["toshkent", "tashkent", "chilonzor", "yunusobod", "mirzo ulug'bek", "sergeli", "ташкент"],
-    cx: 492,
-    cy: 176,
-    path: "M482,166 L502,166 L502,186 L482,186 Z",
-  },
-  {
-    id: "namangan",
-    name: "Namangan",
-    shortName: "Namangan",
-    keywords: ["namangan", "chust", "pop", "kosonsoy", "наманган"],
-    cx: 562,
-    cy: 190,
-    path: "M536,174 L588,168 L602,198 L568,214 L532,202 Z",
-  },
-  {
-    id: "fargona",
-    name: "Farg'ona",
-    shortName: "Farg'ona",
-    keywords: ["farg'ona", "fargona", "fergana", "qo'qon", "marg'ilon", "quvasoy", "фергана", "коканд"],
-    cx: 566,
-    cy: 230,
-    path: "M526,214 L568,214 L596,226 L588,252 L532,246 Z",
-  },
-  {
-    id: "andijon",
-    name: "Andijon",
-    shortName: "Andijon",
-    keywords: ["andijon", "andijan", "asaka", "xonobod", "андижан"],
-    cx: 608,
-    cy: 212,
-    path: "M588,194 L626,198 L628,226 L596,226 L588,208 Z",
-  },
-];
 
 function detectRegionId(cand?: Candidate, vacRegion?: string, vacCity?: string): string {
   const hay = [
@@ -352,7 +196,7 @@ export default function CandidateAnalyticsPanel({
     const map = new Map<
       string,
       {
-        region: RegionDef;
+        region: UzRegionDef;
         count: number;
         male: number;
         female: number;
@@ -819,22 +663,47 @@ export default function CandidateAnalyticsPanel({
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[640px]">
-              <svg viewBox="0 0 640 410" className="h-auto w-full select-none">
+            <div className="relative mx-auto w-full">
+              <svg viewBox={UZ_MAP_VIEWBOX} className="h-auto w-full select-none overflow-visible">
                 <defs>
                   <filter id="map3dShadow" x="-10%" y="-10%" width="120%" height="130%">
-                    <feDropShadow dx="0" dy="9" stdDeviation="4" floodColor="#1e3a8a" floodOpacity="0.28" />
+                    <feDropShadow dx="0" dy="14" stdDeviation="7" floodColor="#1e3a8a" floodOpacity="0.26" />
                   </filter>
+                  <linearGradient id="uzBaseGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2563eb" />
+                    <stop offset="100%" stopColor="#1e3a8a" />
+                  </linearGradient>
+                  <linearGradient id="uzHighGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#1d4ed8" />
+                    <stop offset="100%" stopColor="#3730a3" />
+                  </linearGradient>
+                  <linearGradient id="uzMidGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                  <linearGradient id="uzLowGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#bfdbfe" />
+                    <stop offset="100%" stopColor="#93c5fd" />
+                  </linearGradient>
+                  <linearGradient id="uzZeroGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#eff6ff" />
+                    <stop offset="100%" stopColor="#dbeafe" />
+                  </linearGradient>
                 </defs>
 
-                {/* 3D Extruded Base Layer */}
-                <g transform="translate(0, 7)" opacity="0.42">
+                {/* 3D Extruded Depth Layer (two stacked bevels for crisp isometric 3D look) */}
+                <g transform="translate(0, 12)" opacity="0.28">
                   {UZ_REGIONS.map((reg) => (
-                    <path key={`ext-${reg.id}`} d={reg.path} fill="#1d4ed8" stroke="#1e40af" strokeWidth="1" />
+                    <path key={`ext2-${reg.id}`} d={reg.path} fill="#1e3a8a" />
+                  ))}
+                </g>
+                <g transform="translate(0, 6)" opacity="0.62">
+                  {UZ_REGIONS.map((reg) => (
+                    <path key={`ext1-${reg.id}`} d={reg.path} fill="url(#uzBaseGrad)" stroke="#1e40af" strokeWidth="1" />
                   ))}
                 </g>
 
-                {/* Interactive Top Map Layer */}
+                {/* Interactive Real Official Geographic Borders Layer */}
                 <g filter="url(#map3dShadow)">
                   {UZ_REGIONS.map((reg) => {
                     const stat = regionStats.map.get(reg.id);
@@ -843,13 +712,16 @@ export default function CandidateAnalyticsPanel({
                     const isSelected = selectedRegion === reg.id;
                     const isHovered = hoveredRegion === reg.id;
 
-                    let fill = "#dbeafe";
-                    if (count > 0 && ratio < 0.35) fill = "#93c5fd";
-                    else if (ratio >= 0.35 && ratio < 0.7) fill = "#3b82f6";
-                    else if (ratio >= 0.7) fill = "#1d4ed8";
+                    let fill = "url(#uzZeroGrad)";
+                    if (count > 0 && ratio < 0.35) fill = "url(#uzLowGrad)";
+                    else if (ratio >= 0.35 && ratio < 0.7) fill = "url(#uzMidGrad)";
+                    else if (ratio >= 0.7) fill = "url(#uzHighGrad)";
 
                     if (isSelected) fill = "#059669";
                     else if (isHovered) fill = "#4f46e5";
+
+                    const isDarkFill = ratio >= 0.35 || isSelected || isHovered;
+                    const isSmallValley = ["toshkent_sh", "sirdaryo", "andijon", "namangan", "fargona"].includes(reg.id);
 
                     return (
                       <g
@@ -865,27 +737,30 @@ export default function CandidateAnalyticsPanel({
                           d={reg.path}
                           fill={fill}
                           stroke="#ffffff"
-                          strokeWidth={isSelected || isHovered ? 2.4 : 1.5}
+                          strokeWidth={isSelected || isHovered ? 2.8 : 1.4}
+                          strokeLinejoin="round"
                         />
-                        <text
-                          x={reg.cx}
-                          y={reg.cy}
-                          textAnchor="middle"
-                          fontSize={reg.id === "toshkent_sh" ? "7.5" : "9.5"}
-                          fontWeight="800"
-                          fill={ratio >= 0.35 || isSelected || isHovered ? "#ffffff" : "#1e3a8a"}
-                          className="pointer-events-none"
-                        >
-                          {reg.shortName}
-                        </text>
-                        {count > 0 && (
+                        {reg.id !== "toshkent_sh" && (
                           <text
                             x={reg.cx}
-                            y={reg.cy + 12}
+                            y={reg.cy}
                             textAnchor="middle"
-                            fontSize="9"
+                            fontSize={isSmallValley ? "11" : "13.5"}
+                            fontWeight="800"
+                            fill={isDarkFill ? "#ffffff" : "#1e3a8a"}
+                            className="pointer-events-none"
+                          >
+                            {reg.shortName}
+                          </text>
+                        )}
+                        {count > 0 && reg.id !== "toshkent_sh" && (
+                          <text
+                            x={reg.cx}
+                            y={reg.cy + 16}
+                            textAnchor="middle"
+                            fontSize="12.5"
                             fontWeight="900"
-                            fill={ratio >= 0.35 || isSelected || isHovered ? "#fef08a" : "#1d4ed8"}
+                            fill={isDarkFill ? "#fef08a" : "#1d4ed8"}
                             className="pointer-events-none"
                           >
                             {count}
@@ -896,30 +771,60 @@ export default function CandidateAnalyticsPanel({
                   })}
                 </g>
 
-                {/* Floating Callout Cards for Top 2 Regions (exact reference style!) */}
-                {topTwoRegions.map((item, idx) => {
-                  const bx = Math.min(470, Math.max(20, item.region.cx - 58));
-                  const by = Math.max(12, item.region.cy - (idx === 0 ? 54 : 46));
+                {/* Hover Live Tooltip Pill */}
+                {hoveredRegion && (() => {
+                  const st = regionStats.map.get(hoveredRegion);
+                  if (!st) return null;
+                  const pct = Math.round((st.count / regionStats.totalBase) * 100);
+                  const tx = Math.min(800, Math.max(20, st.region.cx - 88));
+                  const ty = Math.max(12, st.region.cy - 68);
+                  return (
+                    <g className="pointer-events-none">
+                      <rect x={tx} y={ty} width="176" height="46" rx="11" fill="#0f172a" fillOpacity="0.94" stroke="#60a5fa" strokeWidth="1.5" />
+                      <text x={tx + 12} y={ty + 19} fontSize="13" fontWeight="800" fill="#ffffff">
+                        {st.region.name}
+                      </text>
+                      <text x={tx + 12} y={ty + 36} fontSize="12" fontWeight="700" fill="#93c5fd">
+                        {st.count} ta ariza ({pct}%) • E:{st.male} / A:{st.female}
+                      </text>
+                    </g>
+                  );
+                })()}
+
+                {/* Floating Callout Cards for Top 2 Regions */}
+                {!hoveredRegion && topTwoRegions.map((item, idx) => {
+                  const bx = Math.min(790, Math.max(20, item.region.cx - 82));
+                  const by = Math.max(14, item.region.cy - (idx === 0 ? 74 : 62));
                   const pct = Math.round((item.count / regionStats.totalBase) * 100);
                   return (
                     <g key={`pin-${item.region.id}`} className="pointer-events-none">
+                      <line
+                        x1={item.region.cx}
+                        y1={item.region.cy - 8}
+                        x2={bx + 82}
+                        y2={by + 44}
+                        stroke={idx === 0 ? "#dc2626" : "#2563eb"}
+                        strokeWidth="2"
+                        strokeDasharray="3 2"
+                      />
+                      <circle cx={item.region.cx} cy={item.region.cy - 8} r="4.5" fill={idx === 0 ? "#dc2626" : "#2563eb"} stroke="#fff" strokeWidth="1.5" />
                       <rect
                         x={bx}
                         y={by}
-                        width="132"
-                        height="34"
-                        rx="9"
+                        width="168"
+                        height="44"
+                        rx="11"
                         fill="#ffffff"
                         stroke={idx === 0 ? "#dc2626" : "#2563eb"}
-                        strokeWidth="1.8"
+                        strokeWidth="2"
                       />
-                      <text x={bx + 10} y={by + 15} fontSize="10" fontWeight="800" fill="#0f172a">
-                        {item.region.shortName}
+                      <text x={bx + 12} y={by + 19} fontSize="12.5" fontWeight="800" fill="#0f172a">
+                        {item.region.name}
                       </text>
                       <text
-                        x={bx + 10}
-                        y={by + 27}
-                        fontSize="10"
+                        x={bx + 12}
+                        y={by + 36}
+                        fontSize="12.5"
                         fontWeight="900"
                         fill={idx === 0 ? "#dc2626" : "#2563eb"}
                       >

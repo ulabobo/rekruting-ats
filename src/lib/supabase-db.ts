@@ -1162,8 +1162,37 @@ export async function createReserveCandidate(input: {
     });
   }
 
-  // Qiziqish bildirganlar (otklik) ustuniga tushadi
-  const reserveVacId = `vac-city-${input.city.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+  // Qiziqish bildirganlar (otklik) ustuniga tushadi — har bir filial + lavozim uchun alohida zaxira vakansiyasi
+  const slugify = (s?: string) =>
+    (s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 24) || "umumiy";
+
+  const branchName = (input.branch || input.city || "Filial").trim();
+  const posName = (input.position || "Umumiy ariza").trim();
+  const branchLower = branchName.toLowerCase();
+  const posLower = posName.toLowerCase();
+
+  let inferredTrack: TrackType = "dokon_xodimi";
+  if (
+    branchLower.includes("bosh ofis") ||
+    posLower.includes("ofis") ||
+    posLower.includes("hr") ||
+    posLower.includes("buxgalter") ||
+    posLower.includes("marketing") ||
+    posLower.includes("call") ||
+    posLower.includes("it ") ||
+    posLower === "it mutaxassisi" ||
+    posLower.includes("analitik")
+  ) {
+    inferredTrack = "ofis_xodimi";
+  } else if (posLower.includes("rahbar") || posLower.includes("direktor")) {
+    inferredTrack = "dokon_rahbari";
+  }
+
+  const reserveVacId = `vac-res-${slugify(input.city)}-${slugify(branchName)}-${slugify(posName)}`;
   const { data: existingVac } = await sb
     .from("ats_vacancies")
     .select("id")
@@ -1173,11 +1202,11 @@ export async function createReserveCandidate(input: {
   if (!existingVac) {
     await sb.from("ats_vacancies").insert({
       id: reserveVacId,
-      track: "dokon_xodimi",
+      track: inferredTrack,
       region: input.region || input.city,
       city: input.city,
-      branch: input.branch || input.city,
-      position: input.position || "Umumiy ariza",
+      branch: branchName,
+      position: posName,
       shift: input.shift || "Kelishiladi",
       salary_band: "Shtat bo'yicha",
       headcount: 1,
@@ -1194,7 +1223,7 @@ export async function createReserveCandidate(input: {
     id: appId,
     candidate_id: candidateId,
     vacancy_id: reserveVacId,
-    track: "dokon_xodimi",
+    track: inferredTrack,
     current_stage: "otklik",
     status: "active",
     match_score: 75,

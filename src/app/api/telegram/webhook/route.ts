@@ -638,6 +638,12 @@ export async function POST(req: NextRequest) {
 
       if (data.startsWith("passive:")) {
         const position = data.replace("passive:", "");
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "position",
+        });
         const st = (await getSession(chatId)) || {
           mode: "reserve",
           step: "idle",
@@ -675,6 +681,12 @@ export async function POST(req: NextRequest) {
       // 3. Lavozim tanlandi -> "Sizdan kutamiz" + Smena
       if (data.startsWith("vac:")) {
         const vacId = data.replace("vac:", "");
+        await trackBotFunnelStep({
+          chatId,
+          username: cq.from?.username,
+          firstName: cq.from?.first_name,
+          step: "position",
+        });
         const { data: vac } = await sb
           .from("ats_vacancies")
           .select("*")

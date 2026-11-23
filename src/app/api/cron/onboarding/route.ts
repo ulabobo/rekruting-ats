@@ -174,16 +174,16 @@ export async function GET() {
       }
     }
 
-    // 4. Yarim yo'lda to'xtab qolgan bot foydalanuvchilariga 1 soatdan keyin bitta eslatma
+    // 4. Yarim yo'lda to'xtab qolgan bot foydalanuvchilariga 10 daqiqadan keyin tez eslatma
     let abandonedReminded = 0;
-    const oneHourAgoIso = new Date(nowMs - 3600000).toISOString();
+    const tenMinAgoIso = new Date(nowMs - 10 * 60 * 1000).toISOString();
     const { data: abandoned } = await sb
       .from("ats_bot_funnel")
       .select("chat_id, first_name")
       .eq("status", "in_progress")
       .gte("furthest_rank", 2)
       .is("reminded_at", null)
-      .lt("updated_at", oneHourAgoIso)
+      .lt("updated_at", tenMinAgoIso)
       .limit(20);
 
     for (const ab of abandoned || []) {

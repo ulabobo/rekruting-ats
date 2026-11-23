@@ -671,68 +671,107 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
         const spiralStages = [
           {
             num: "01",
-            title: "KIRISH",
-            sub: "/start va menyu",
+            title: "/START",
+            sub: "Botga kirdi",
             minRank: 1,
             pos: "top" as const,
             color: "#f59e0b",
             gradTop: "#fde047",
             gradBot: "#d97706",
             backColor: "#b45309",
-            height: 210,
-            x: 285,
+            height: 220,
+            x: 220,
           },
           {
             num: "02",
-            title: "HUDUD / FILIAL",
-            sub: "Filial va lavozim",
+            title: "HUDUD & FILIAL",
+            sub: "Hudud/filial",
             minRank: 3,
             pos: "bottom" as const,
             color: "#0ea5a4",
             gradTop: "#67e8f9",
             gradBot: "#0e7490",
             backColor: "#155e75",
-            height: 176,
-            x: 372,
+            height: 196,
+            x: 290,
           },
           {
             num: "03",
-            title: "ANKETA",
-            sub: "Smena va telefon",
-            minRank: 6,
+            title: "LAVOZIM & SMENA",
+            sub: "Vakansiya tanladi",
+            minRank: 5,
             pos: "top" as const,
+            color: "#0284c7",
+            gradTop: "#38bdf8",
+            gradBot: "#0369a1",
+            backColor: "#075985",
+            height: 174,
+            x: 358,
+          },
+          {
+            num: "04",
+            title: "ISM & MANZIL",
+            sub: "Shaxsiy ma'lumot",
+            minRank: 7,
+            pos: "bottom" as const,
             color: "#2563eb",
             gradTop: "#60a5fa",
             gradBot: "#1d4ed8",
             backColor: "#1e40af",
-            height: 146,
-            x: 454,
-          },
-          {
-            num: "04",
-            title: "FOTO / MANBA",
-            sub: "Selfi va qayerdan",
-            minRank: 10,
-            pos: "bottom" as const,
-            color: "#8b5cf6",
-            gradTop: "#c4b5fd",
-            gradBot: "#6d28d9",
-            backColor: "#5b21b6",
-            height: 118,
-            x: 530,
+            height: 152,
+            x: 424,
           },
           {
             num: "05",
+            title: "TELEFON RAQAM",
+            sub: "Aloqa raqami",
+            minRank: 8,
+            pos: "top" as const,
+            color: "#4f46e5",
+            gradTop: "#818cf8",
+            gradBot: "#3730a3",
+            backColor: "#312e81",
+            height: 132,
+            x: 488,
+          },
+          {
+            num: "06",
+            title: "TAJRIBA & TA'LIM",
+            sub: "Sog'liq/tillar",
+            minRank: 9,
+            pos: "bottom" as const,
+            color: "#7c3aed",
+            gradTop: "#c4b5fd",
+            gradBot: "#6d28d9",
+            backColor: "#5b21b6",
+            height: 114,
+            x: 550,
+          },
+          {
+            num: "07",
+            title: "FOTO & MANBA",
+            sub: "Selfi va kanal",
+            minRank: 10,
+            pos: "top" as const,
+            color: "#c026d3",
+            gradTop: "#f0abfc",
+            gradBot: "#a21caf",
+            backColor: "#86198f",
+            height: 98,
+            x: 610,
+          },
+          {
+            num: "08",
             title: "YUBORILDI",
             sub: "Tayyor anketa",
             minRank: 13,
-            pos: "top" as const,
+            pos: "bottom" as const,
             color: "#e11d48",
             gradTop: "#fb7185",
             gradBot: "#be123c",
             backColor: "#9f1239",
-            height: 92,
-            x: 602,
+            height: 84,
+            x: 668,
           },
         ].map((st) => {
           const count = bf.filter((x) => x.furthestRank >= st.minRank).length;
@@ -740,8 +779,8 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
           return { ...st, count, pct };
         });
 
-        const completedCount = spiralStages[4].count;
-        const completedPct = spiralStages[4].pct;
+        const completedCount = spiralStages[spiralStages.length - 1].count;
+        const completedPct = spiralStages[spiralStages.length - 1].pct;
 
         return (
           <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
@@ -776,8 +815,8 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
 
             <div className="w-full overflow-x-auto">
               <svg
-                viewBox="0 0 920 340"
-                className="mx-auto h-auto min-w-[740px] w-full max-w-5xl"
+                viewBox="0 0 980 350"
+                className="mx-auto h-auto min-w-[820px] w-full max-w-6xl"
                 role="img"
                 aria-label="Telegram Bot Spiral Funnel"
               >
@@ -804,35 +843,35 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
                 </defs>
 
                 {/* Incoming Left Ribbon */}
-                <rect x="0" y="160" width="295" height="24" rx="4" fill="url(#inBelt)" />
+                <rect x="0" y="160" width="235" height="24" rx="4" fill="url(#inBelt)" />
                 {/* Outgoing Right Ribbon */}
-                <rect x="635" y="160" width="285" height="24" rx="4" fill="url(#outBelt)" />
+                <rect x="705" y="160" width="275" height="24" rx="4" fill="url(#outBelt)" />
 
                 {/* Left Incoming People Icons */}
-                {[55, 115, 168, 212].map((px, i) => (
+                {[38, 86, 134, 178].map((px, i) => (
                   <g key={px} transform={`translate(${px}, 122)`} fill="#334155" opacity={0.75 + i * 0.06}>
                     <circle cx="10" cy="7" r="5" />
                     <path d="M5 14 h10 l3 12 h-4 l-1.5 -6 v14 h-3 v-9 h-1 v9 h-3 v-14 l-2 6 h-3 z" />
                   </g>
                 ))}
-                <text x="115" y="214" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="700">
+                <text x="108" y="214" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="700">
                   BOTGA KIRGANLAR
                 </text>
-                <text x="115" y="234" textAnchor="middle" fill="#0f172a" fontSize="18" fontWeight="800">
+                <text x="108" y="234" textAnchor="middle" fill="#0f172a" fontSize="18" fontWeight="800">
                   {totalStarted} nafar
                 </text>
 
                 {/* Right Target / Completed Section */}
-                <g transform="translate(765, 112)">
+                <g transform="translate(835, 112)">
                   <circle cx="24" cy="24" r="20" fill="none" stroke="#e11d48" strokeWidth="3" />
                   <circle cx="24" cy="24" r="12" fill="none" stroke="#e11d48" strokeWidth="2.5" />
                   <circle cx="24" cy="24" r="4.5" fill="#e11d48" />
                   <path d="M24 24 L42 6 M36 6 L42 6 L42 12" stroke="#0f172a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
                 </g>
-                <text x="790" y="214" textAnchor="middle" fill="#be123c" fontSize="11" fontWeight="800">
+                <text x="860" y="214" textAnchor="middle" fill="#be123c" fontSize="11" fontWeight="800">
                   YAKUNIY KONVERSIYA
                 </text>
-                <text x="790" y="236" textAnchor="middle" fill="#0f172a" fontSize="20" fontWeight="900">
+                <text x="860" y="236" textAnchor="middle" fill="#0f172a" fontSize="20" fontWeight="900">
                   {completedCount} ta ({completedPct}%)
                 </text>
 

@@ -504,9 +504,8 @@ export async function handleKdpCallback(
     const res = await finalizeHireAfterKdp(token, flowId, `KDP (${fromName})`);
     const doneText = res.ok
       ? `✅ <b>Rasmiylashtirildi!</b>\n` +
-        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi va Google Sheets yangilandi.\n` +
-        `👮 Tasdiqladi: ${fromName}\n\n` +
-        `✉️ <b>Nomzodga yuborilgan yakuniy SMS nusxasi:</b>\n<blockquote>${res.finalSms || ""}</blockquote>`
+        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi, tabrik xati yuborildi va Google Sheets yangilandi.\n` +
+        `👮 Tasdiqladi: ${fromName}`
       : "⚠️ Nomzod topilmadi yoki allaqachon rasmiylashtirilgan.";
 
     if (msgId) {

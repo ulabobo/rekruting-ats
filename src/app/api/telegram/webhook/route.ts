@@ -9,6 +9,7 @@ import {
 } from "@/lib/supabase-db";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
+import { handleKdpCallback, handleKdpCommand } from "@/lib/kdp-bot";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { CandidateSource, TrackType } from "@/types/ats";
 
@@ -434,6 +435,13 @@ export async function POST(req: NextRequest) {
 
       if (data.startsWith("onboard:")) {
         await handleOnboardingCallback(token, chatId, msgId, data);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data.startsWith("kdp:")) {
+        const fromName =
+          [cq.from?.first_name, cq.from?.last_name].filter(Boolean).join(" ") || "KDP";
+        await handleKdpCallback(token, chatId, msgId, data, fromName);
         return NextResponse.json({ ok: true });
       }
 
@@ -896,6 +904,15 @@ export async function POST(req: NextRequest) {
     if (!msg) return NextResponse.json({ ok: true });
     const chatId = msg.chat.id as number;
     const text = (msg.text || "").trim();
+
+    if (text) {
+      const fromName =
+        [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "KDP";
+      const handledKdp = await handleKdpCommand(token, chatId, text, fromName);
+      if (handledKdp) {
+        return NextResponse.json({ ok: true });
+      }
+    }
 
     if (text === "/start") {
       await clearSession(chatId);

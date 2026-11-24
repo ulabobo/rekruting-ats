@@ -1,5 +1,5 @@
-import { addDocument, getSupabase, notifyApplicantsVacancyClosed } from "@/lib/supabase-db";
-import { appendHujjatlarRowToSheets, incrementStaffingFactInSheets } from "@/lib/google-sheets";
+import { addDocument, getSupabase } from "@/lib/supabase-db";
+import { finalizeHireAfterKdp, getKdpSettings, notifyAllKdpStaff } from "@/lib/kdp-bot";
 import {
   DEFAULT_ONBOARDING_FOLDERS,
   DEFAULT_SURVEY_ITEMS,
@@ -423,127 +423,60 @@ export async function handleOnboardingCallback(
     return true;
   }
 
-  if (data === "onboard:dataconsent:yes") {
-    const nowMs = Date.now();
-    const nowIso = new Date(nowMs).toISOString();
-    const tashkentTomorrow = new Date(nowMs + 5 * 3600 * 1000 + 86400000);
-    const tomorrowIso = tashkentTomorrow.toISOString().slice(0, 10);
-    const [ty, tm, td] = tomorrowIso.split("-");
-    const tomorrowDisplay = `${td}.${tm}.${ty}`;
-
+  if (data.startsWith("onboard:redocs:")) {
     await sb
       .from("ats_onboarding_flows")
       .update({
-        step: "completed",
-        updated_at: nowIso,
+        step: "awaiting_passport_front",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", flow.id);
-
-    await sb
-      .from("ats_applications")
-      .update({
-        status: "hired",
-        current_stage: "ishga_qabul",
-        hire_start_date: tomorrowIso,
-        lms_transferred_at: nowIso,
-      })
-      .eq("id", flow.application_id);
-
-    const { data: setRow } = await sb
-      .from("ats_settings")
-      .select("data")
-      .eq("id", "default")
-      .maybeSingle();
-
-    if (vac && app) {
-      const nextFilled = Math.min(vac.headcount || 1, (vac.filled_count || 0) + 1);
-      const isClosed = nextFilled >= (vac.headcount || 1);
-      await sb
-        .from("ats_vacancies")
-        .update({
-          filled_count: nextFilled,
-          status: isClosed ? "closed" : vac.status,
-        })
-        .eq("id", vac.id);
-
-      const stRes = await incrementStaffingFactInSheets({
-        branch: vac.branch,
-        position: vac.position,
-        webhookUrl: setRow?.data?.googleSheetsWebhookUrl,
-      });
-      await sb.from("ats_integration_events").insert({
-        id: `evt-${Date.now()}-st`,
-        direction: "outbound",
-        system: "GoogleSheets",
-        event_type: "SHTATKA_FACT_INCREMENT",
-        payload_summary: `${vac.branch} — ${vac.position}: ${stRes.ok ? "+1 Band yangilandi" : stRes.error}`,
-        status: stRes.ok ? "success" : "failed",
-      });
-
-      if (isClosed) {
-        await notifyApplicantsVacancyClosed(vac.id, app.id);
-      }
-    }
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://rekruting-ats.onrender.com";
-    const frontUrl = flow.passport_front_file_id
-      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_front_file_id)}`
-      : "";
-    const backUrl = flow.passport_back_file_id
-      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.passport_back_file_id)}`
-      : "";
-    const p3x4Url = flow.photo_3x4_file_id
-      ? `${baseUrl}/api/telegram/file?file_id=${encodeURIComponent(flow.photo_3x4_file_id)}`
-      : "";
-    const surveyArr: { question: string; answer: string }[] = Array.isArray(flow.survey_answers)
-      ? flow.survey_answers
-      : [];
-    const surveySummary = surveyArr.map((s) => `${s.question}: ${s.answer}`).join(" | ");
-
-    await appendHujjatlarRowToSheets({
-      existingSpreadsheetId: setRow?.data?.googleSpreadsheetId,
-      webhookUrl: setRow?.data?.googleSheetsWebhookUrl,
-      row: {
-        date: nowIso.slice(0, 10),
-        fullName: cand?.full_name || "—",
-        birthDate: cand?.birth_date || cand?.questionnaire_data?.birthDate || "—",
-        gender: cand?.gender || cand?.questionnaire_data?.gender || "—",
-        address: cand?.address || cand?.questionnaire_data?.address || "—",
-        phone: flow.doc_phone || cand?.phone || "—",
-        education: cand?.education || cand?.questionnaire_data?.education || "—",
-        experience: cand?.experience_years || cand?.questionnaire_data?.totalExp || "—",
-        branch: vac?.branch || "—",
-        position: vac?.position || "—",
-        shift: flow.shift || cand?.questionnaire_data?.shift || vac?.shift || "—",
-        salary: vac?.salary_band || "—",
-        testDate: flow.test_date || "—",
-        passportFrontUrl: frontUrl,
-        passportBackUrl: backUrl,
-        photo3x4Url: p3x4Url,
-        surveySummary,
-      },
-    });
-
-    await sb.from("ats_notifications").insert({
-      id: `notif-${Date.now()}`,
-      title: "Yangi xodim ishga qabul qilindi!",
-      message: `${cand?.full_name || "Nomzod"} hujjatlarni yakunladi va rozilik berdi. Ishga chiqish sanasi: ${tomorrowDisplay}.`,
-      type: "success",
-      read: false,
-      related_application_id: flow.application_id,
-    });
 
     await editOrSendSimple(
       token,
       chatId,
       msgId,
-      `🎉 <b>Tabriklaymiz, ${cand?.full_name || ""}! Siz ishga qabul qilindingiz!</b>\n\n` +
-        `📅 Ishga chiqish sanangiz: <b>${tomorrowDisplay}</b> (ertaga)\n` +
-        `🏢 Filial: <b>${vac?.branch || "—"}</b>\n` +
-        `💼 Lavozim: <b>${vac?.position || "—"}</b>\n` +
-        `🕒 Smena: <b>${flow.shift || vac?.shift || "—"}</b> (15 daqiqa oldin kelishni unutmang)\n\n` +
-        `Aura jamoasiga xush kelibsiz! 🤝`
+      `📄 <b>Hujjatlarni qayta yuborish (1/4)</b>\n\nIltimos, <b>Pasport yoki ID kartangizning OLD tomoni</b> rasmini aniq qilib yuboring:`
     );
+    return true;
+  }
+
+  if (data === "onboard:dataconsent:yes") {
+    const nowIso = new Date().toISOString();
+    const { kdpChatIds } = await getKdpSettings();
+
+    if (kdpChatIds.length > 0) {
+      await sb
+        .from("ats_onboarding_flows")
+        .update({
+          step: "awaiting_kdp_approval",
+          updated_at: nowIso,
+        })
+        .eq("id", flow.id);
+
+      await notifyAllKdpStaff(token, flow.id);
+
+      await sb.from("ats_notifications").insert({
+        id: `notif-${Date.now()}`,
+        title: "Hujjatlar KDP tekshiruviga yuborildi",
+        message: `${cand?.full_name || "Nomzod"} barcha hujjatlarni yubordi. KDP tasdiqlashi kutilmoqda.`,
+        type: "info",
+        read: false,
+        related_application_id: flow.application_id,
+      });
+
+      await editOrSendSimple(
+        token,
+        chatId,
+        msgId,
+        `⏳ <b>Hujjatlaringiz qabul qilindi va Kadrlar (KDP) bo'limiga tekshirish uchun yuborildi!</b>\n\n` +
+          `Mutaxassis hujjatlaringizni rasmiylashtirishi bilan sizga shu bot orqali rasmiy tabrik xati va ishga chiqish sanangiz yuboriladi.`
+      );
+      return true;
+    }
+
+    // Agar hali birorta KDP xodimi ulanmagan bo'lsa, darhol yakunlaydi
+    await finalizeHireAfterKdp(token, flow.id, "Avtopilot");
     return true;
   }
 

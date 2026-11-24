@@ -552,7 +552,11 @@ export async function createApplicationFromLead(input: {
   }
 
   const track = vac.track as TrackType;
-  const firstStage = TRACK_CONFIGS[track].stages[0].id;
+  const rawFirstStage = TRACK_CONFIGS[track].stages[0].id;
+  const firstStage =
+    rawFirstStage === "ichki_nomzod" && input.source !== "Ichki nomzod"
+      ? "otklik"
+      : rawFirstStage;
   const appId = uid("app");
 
   await sb.from("ats_applications").insert({

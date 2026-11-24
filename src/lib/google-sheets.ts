@@ -384,10 +384,16 @@ export async function syncDatabaseToGoogleSheets(
 
 export async function appendHujjatlarRowToSheets(params: {
   existingSpreadsheetId?: string;
+  webhookUrl?: string;
   row: {
     date: string;
     fullName: string;
+    birthDate?: string;
+    gender?: string;
+    address?: string;
     phone: string;
+    education?: string;
+    experience?: string;
     branch: string;
     position: string;
     shift: string;
@@ -399,6 +405,25 @@ export async function appendHujjatlarRowToSheets(params: {
     surveySummary: string;
   };
 }): Promise<{ ok: boolean; error?: string }> {
+  const hook = (params.webhookUrl || process.env.GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
+  if (hook) {
+    try {
+      const res = await fetch(hook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "append_hujjatlar", row: params.row }),
+        redirect: "follow",
+      });
+      if (res.ok) return { ok: true };
+      return { ok: false, error: `Webhook HTTP ${res.status}` };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Webhook xatosi",
+      };
+    }
+  }
+
   const auth = getAuthClient();
   if (!auth) return { ok: false, error: "Google Sheets ulanmagan" };
 
@@ -426,7 +451,12 @@ export async function appendHujjatlarRowToSheets(params: {
             [
               "Sana",
               "F.I.O",
+              "Tug'ilgan sana",
+              "Jinsi",
+              "Manzil",
               "Telefon (Hujjat)",
+              "Ma'lumoti",
+              "Tajriba",
               "Filial",
               "Lavozim",
               "Smena",
@@ -444,14 +474,19 @@ export async function appendHujjatlarRowToSheets(params: {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "Hujjatlar!A:L",
+      range: "Hujjatlar!A:Q",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
           [
             params.row.date,
             params.row.fullName,
+            params.row.birthDate || "—",
+            params.row.gender || "—",
+            params.row.address || "—",
             params.row.phone,
+            params.row.education || "—",
+            params.row.experience || "—",
             params.row.branch,
             params.row.position,
             params.row.shift,
@@ -477,7 +512,31 @@ export async function appendHujjatlarRowToSheets(params: {
 export async function incrementStaffingFactInSheets(params: {
   branch: string;
   position: string;
+  webhookUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const hook = (params.webhookUrl || process.env.GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
+  if (hook) {
+    try {
+      const res = await fetch(hook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "increment_band",
+          branch: params.branch,
+          position: params.position,
+        }),
+        redirect: "follow",
+      });
+      if (res.ok) return { ok: true };
+      return { ok: false, error: `Webhook HTTP ${res.status}` };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Webhook xatosi",
+      };
+    }
+  }
+
   const auth = getAuthClient();
   if (!auth) return { ok: false, error: "Google Sheets ulanmagan" };
 

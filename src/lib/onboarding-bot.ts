@@ -469,6 +469,7 @@ export async function handleOnboardingCallback(
       const stRes = await incrementStaffingFactInSheets({
         branch: vac.branch,
         position: vac.position,
+        webhookUrl: setRow?.data?.googleSheetsWebhookUrl,
       });
       await sb.from("ats_integration_events").insert({
         id: `evt-${Date.now()}-st`,
@@ -501,13 +502,19 @@ export async function handleOnboardingCallback(
 
     await appendHujjatlarRowToSheets({
       existingSpreadsheetId: setRow?.data?.googleSpreadsheetId,
+      webhookUrl: setRow?.data?.googleSheetsWebhookUrl,
       row: {
         date: nowIso.slice(0, 10),
         fullName: cand?.full_name || "—",
+        birthDate: cand?.birth_date || cand?.questionnaire_data?.birthDate || "—",
+        gender: cand?.gender || cand?.questionnaire_data?.gender || "—",
+        address: cand?.address || cand?.questionnaire_data?.address || "—",
         phone: flow.doc_phone || cand?.phone || "—",
+        education: cand?.education || cand?.questionnaire_data?.education || "—",
+        experience: cand?.experience_years || cand?.questionnaire_data?.totalExp || "—",
         branch: vac?.branch || "—",
         position: vac?.position || "—",
-        shift: flow.shift || vac?.shift || "—",
+        shift: flow.shift || cand?.questionnaire_data?.shift || vac?.shift || "—",
         salary: vac?.salary_band || "—",
         testDate: flow.test_date || "—",
         passportFrontUrl: frontUrl,

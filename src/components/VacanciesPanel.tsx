@@ -87,7 +87,7 @@ export default function VacanciesPanel({
   onUpdateDb: (db: AtsDatabase) => void;
 }) {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
-  const [vacancyTab, setVacancyTab] = useState<"active" | "closed">("active");
+  const [vacancyTab, setVacancyTab] = useState<"open_now" | "closed" | "all">("open_now");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<VacFilterState>({
     branches: [],
@@ -111,7 +111,7 @@ export default function VacanciesPanel({
   const filtered = useMemo(() => {
     return realVacancies.filter((v) => {
       if (v.status === "paused") return false;
-      if (vacancyTab === "active" && v.status === "closed") return false;
+      if (vacancyTab === "open_now" && v.status === "closed") return false;
       if (vacancyTab === "closed" && v.status !== "closed") return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -223,13 +223,13 @@ export default function VacanciesPanel({
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 text-xs font-semibold">
             <button
-              onClick={() => setVacancyTab("active")}
+              onClick={() => setVacancyTab("open_now")}
               className={`rounded-lg px-3 py-1.5 ${
-                vacancyTab === "active" ? "bg-slate-900 text-white" : "text-slate-600"
+                vacancyTab === "open_now" ? "bg-blue-600 text-white" : "text-slate-600"
               }`}
             >
-              {lang === "ru" ? "Активные" : "Faol"} (
-              {db.vacancies.filter((v) => v.status !== "closed").length})
+              {lang === "ru" ? "Сейчас открыты" : "Hozir ochiq"} (
+              {realVacancies.filter((v) => v.status === "open" || v.status === "accepted").length})
             </button>
             <button
               onClick={() => setVacancyTab("closed")}
@@ -238,7 +238,16 @@ export default function VacanciesPanel({
               }`}
             >
               {lang === "ru" ? "Закрытые" : "Yopilganlar"} (
-              {db.vacancies.filter((v) => v.status === "closed").length})
+              {realVacancies.filter((v) => v.status === "closed").length})
+            </button>
+            <button
+              onClick={() => setVacancyTab("all")}
+              className={`rounded-lg px-3 py-1.5 ${
+                vacancyTab === "all" ? "bg-slate-900 text-white" : "text-slate-600"
+              }`}
+            >
+              {lang === "ru" ? "Все" : "Barchasi"} (
+              {realVacancies.filter((v) => v.status !== "paused").length})
             </button>
           </div>
 

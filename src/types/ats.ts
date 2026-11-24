@@ -258,6 +258,7 @@ export interface SystemSettings {
   onboardingFolders?: OnboardingFolderItem[];
   googleSpreadsheetId?: string;
   googleSpreadsheetUrl?: string;
+  googleSheetsWebhookUrl?: string;
   googleLastSyncAt?: string;
   posthogKey?: string;
   posthogHost?: string;

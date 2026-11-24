@@ -115,6 +115,7 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
 
   const filteredVacs = useMemo(() => {
     return db.vacancies.filter((v) => {
+      if (v.id.startsWith("vac-res-") || v.id.startsWith("vac-city-")) return false;
       const ts = new Date(v.approvedAt).getTime();
       if (period !== "all" && (ts < bounds.start || ts > bounds.end)) return false;
       if (selectedRecruiterId !== "all" && v.responsibleRecruiterId !== selectedRecruiterId)

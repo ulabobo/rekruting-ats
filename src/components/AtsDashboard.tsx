@@ -360,7 +360,12 @@ export default function AtsDashboard({
                   }`}
                 >
                   {db.vacancies
-                    .filter((v) => v.status === "open" || v.status === "accepted")
+                    .filter(
+                      (v) =>
+                        !v.id.startsWith("vac-res-") &&
+                        !v.id.startsWith("vac-city-") &&
+                        (v.status === "open" || v.status === "accepted")
+                    )
                     .reduce((s, v) => s + v.headcount, 0)}
                 </span>
               </button>

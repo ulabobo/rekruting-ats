@@ -98,13 +98,18 @@ export default function VacanciesPanel({
   const [draft, setDraft] = useState<VacFilterState>(filters);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
-  const branches = useMemo(
-    () => Array.from(new Set(db.vacancies.map((v) => v.branch))),
+  const realVacancies = useMemo(
+    () => db.vacancies.filter((v) => !v.id.startsWith("vac-res-") && !v.id.startsWith("vac-city-")),
     [db.vacancies]
   );
 
+  const branches = useMemo(
+    () => Array.from(new Set(realVacancies.map((v) => v.branch))),
+    [realVacancies]
+  );
+
   const filtered = useMemo(() => {
-    return db.vacancies.filter((v) => {
+    return realVacancies.filter((v) => {
       if (vacancyTab === "active" && v.status === "closed") return false;
       if (vacancyTab === "closed" && v.status !== "closed") return false;
       if (search.trim()) {
@@ -122,7 +127,7 @@ export default function VacanciesPanel({
       if (filters.statuses.length > 0 && !filters.statuses.includes(v.status)) return false;
       return true;
     });
-  }, [db.vacancies, vacancyTab, search, filters]);
+  }, [realVacancies, vacancyTab, search, filters]);
 
   // Top Analytics stats dynamically calculated by headcount (shtat soni) from filtered vacancies!
   const totalHeadcount = filtered.reduce((s, v) => s + v.headcount, 0);

@@ -1196,42 +1196,62 @@ export async function createReserveCandidate(input: {
     inferredTrack = "dokon_rahbari";
   }
 
-  const reserveVacId = `vac-res-${slugify(input.city)}-${slugify(branchName)}-${slugify(posName)}`;
-  const { data: existingVac } = await sb
+  // Avval shu filial + lavozimda HAQIQIY ochiq vakansiya bor-yo'qligini tekshiramiz
+  const { data: realOpenVacs } = await sb
     .from("ats_vacancies")
-    .select("id")
-    .eq("id", reserveVacId)
-    .maybeSingle();
+    .select("id, track, branch, position, responsible_recruiter_id")
+    .in("status", ["open", "accepted"])
+    .not("id", "like", "vac-res-%")
+    .not("id", "like", "vac-city-%");
 
-  if (!existingVac) {
-    await sb.from("ats_vacancies").insert({
-      id: reserveVacId,
-      track: inferredTrack,
-      region: input.region || input.city,
-      city: input.city,
-      branch: branchName,
-      position: posName,
-      shift: input.shift || "Kelishiladi",
-      salary_band: "Shtat bo'yicha",
-      headcount: 1,
-      filled_count: 0,
-      sla_days: 30,
-      responsible_recruiter_id: "u-admin",
-      hiring_manager_name: "Rekruter",
-      status: "open",
-    });
+  const matchedRealVac = (realOpenVacs || []).find(
+    (v) =>
+      String(v.branch || "").trim().toLowerCase() === branchLower &&
+      String(v.position || "").trim().toLowerCase() === posLower
+  );
+
+  let targetVacId = matchedRealVac?.id as string | undefined;
+  let targetTrack: TrackType = (matchedRealVac?.track as TrackType) || inferredTrack;
+  const targetRecruiterId = matchedRealVac?.responsible_recruiter_id || "u-admin";
+
+  if (!targetVacId) {
+    targetVacId = `vac-res-${slugify(input.city)}-${slugify(branchName)}-${slugify(posName)}`;
+    const { data: existingVac } = await sb
+      .from("ats_vacancies")
+      .select("id")
+      .eq("id", targetVacId)
+      .maybeSingle();
+
+    if (!existingVac) {
+      await sb.from("ats_vacancies").insert({
+        id: targetVacId,
+        track: inferredTrack,
+        region: input.region || input.city,
+        city: input.city,
+        branch: branchName,
+        position: posName,
+        shift: input.shift || "Kelishiladi",
+        salary_band: "Shtat bo'yicha",
+        headcount: 0,
+        filled_count: 0,
+        sla_days: 30,
+        responsible_recruiter_id: "u-admin",
+        hiring_manager_name: "Zaxira (Bot)",
+        status: "paused",
+      });
+    }
   }
 
   const appId = uid("app");
   await sb.from("ats_applications").insert({
     id: appId,
     candidate_id: candidateId,
-    vacancy_id: reserveVacId,
-    track: inferredTrack,
+    vacancy_id: targetVacId,
+    track: targetTrack,
     current_stage: "otklik",
     status: "active",
     match_score: 75,
-    assigned_recruiter_id: "u-admin",
+    assigned_recruiter_id: targetRecruiterId,
     is_duplicate_warning: Boolean(existing),
   });
 

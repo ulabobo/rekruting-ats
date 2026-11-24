@@ -22,6 +22,7 @@ import autoTable from "jspdf-autotable";
 import { Application, AtsDatabase, TrackType } from "@/types/ats";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import CandidateAnalyticsPanel from "@/components/CandidateAnalyticsPanel";
+import SurveyAnalyticsPanel from "@/components/SurveyAnalyticsPanel";
 
 interface AnalyticsPanelProps {
   db: AtsDatabase;
@@ -82,7 +83,7 @@ function calcAvgDays(pairs: { start?: string; end?: string }[]): { label: string
 }
 
 export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
-  const [analyticsTab, setAnalyticsTab] = useState<"recruiting" | "candidates">("recruiting");
+  const [analyticsTab, setAnalyticsTab] = useState<"recruiting" | "candidates" | "survey">("recruiting");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -632,10 +633,24 @@ export default function AnalyticsPanel({ db }: AnalyticsPanelProps) {
           <Users className="h-4 w-4" />
           Nomzodlar analitikasi (Demografiya &amp; O&apos;zbekiston xaritasi)
         </button>
+        <button
+          type="button"
+          onClick={() => setAnalyticsTab("survey")}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition ${
+            analyticsTab === "survey"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Award className="h-4 w-4" />
+          Sinov kuni so&apos;rovnomasi (CSAT)
+        </button>
       </div>
 
       {analyticsTab === "candidates" ? (
         <CandidateAnalyticsPanel db={db} filteredApps={filteredApps} />
+      ) : analyticsTab === "survey" ? (
+        <SurveyAnalyticsPanel db={db} filteredApps={filteredApps} />
       ) : (
         <>
       {/* 6 Executive KPI Cards */}

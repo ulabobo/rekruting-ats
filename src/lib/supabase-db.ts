@@ -121,6 +121,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     notifRes,
     setRes,
     botFunnelRes,
+    onboardingRes,
   ] = await Promise.all([
     sb.from("ats_users").select("id, login, password_hash, email, full_name, role, allowed_tracks, assigned_branches, position, created_at").order("created_at", { ascending: true }),
     sb.from("ats_mass_projects").select("*").order("created_at", { ascending: false }),
@@ -137,6 +138,7 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
     sb.from("ats_notifications").select("*").order("created_at", { ascending: false }).limit(50),
     sb.from("ats_settings").select("*").eq("id", "default").maybeSingle(),
     sb.from("ats_bot_funnel").select("*").order("updated_at", { ascending: false }).limit(500),
+    sb.from("ats_onboarding_flows").select("id, application_id, candidate_id, step, test_date, shift, survey_answers, updated_at").order("updated_at", { ascending: false }).limit(300),
   ]);
 
   return {
@@ -315,6 +317,16 @@ export async function getFullDatabase(): Promise<AtsDatabase> {
       remindedAt: b.reminded_at || undefined,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
+    })),
+    onboardingFlows: (onboardingRes.data || []).map((f) => ({
+      id: f.id,
+      applicationId: f.application_id,
+      candidateId: f.candidate_id,
+      step: f.step,
+      testDate: f.test_date || undefined,
+      shift: f.shift || undefined,
+      surveyAnswers: Array.isArray(f.survey_answers) ? f.survey_answers : [],
+      updatedAt: f.updated_at,
     })),
     settings: setRes.data?.data || {
       internalCandidateMinCategory: "2-toifa",

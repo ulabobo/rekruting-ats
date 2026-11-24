@@ -277,6 +277,17 @@ export interface BotFunnelEntry {
   updatedAt: string;
 }
 
+export interface OnboardingFlowSummary {
+  id: string;
+  applicationId: string;
+  candidateId: string;
+  step: string;
+  testDate?: string;
+  shift?: string;
+  surveyAnswers: { question: string; answer: string }[];
+  updatedAt: string;
+}
+
 export interface AtsDatabase {
   users: User[];
   massProjects: MassHiringProject[];
@@ -292,5 +303,6 @@ export interface AtsDatabase {
   integrationEvents: IntegrationEvent[];
   notifications: NotificationItem[];
   botFunnel?: BotFunnelEntry[];
+  onboardingFlows?: OnboardingFlowSummary[];
   settings: SystemSettings;
 }

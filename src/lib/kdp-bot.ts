@@ -39,6 +39,24 @@ async function saveKdpSettingsPatch(patch: Record<string, unknown>) {
   await sb.from("ats_settings").upsert({ id: "default", data: next }, { onConflict: "id" });
 }
 
+function buildFinalWelcomeSms(params: {
+  fullName: string;
+  tomorrowDisplay: string;
+  branch: string;
+  position: string;
+  toifa: string;
+  shift: string;
+}) {
+  return (
+    `🎉 <b>Tabriklaymiz, ${params.fullName}! Hujjatlaringiz rasmiylashtirildi va siz ishga qabul qilindingiz!</b>\n\n` +
+    `📅 Ishga chiqish sanangiz: <b>${params.tomorrowDisplay}</b> (ertaga)\n` +
+    `🏢 Filial / Do'kon: <b>${params.branch}</b>\n` +
+    `💼 Lavozim: <b>${params.position}</b> (${params.toifa})\n` +
+    `🕒 Smena: <b>${params.shift}</b> (15 daqiqa oldin kelishni unutmang)\n\n` +
+    `Aura jamoasiga xush kelibsiz! 🤝`
+  );
+}
+
 export async function sendKdpPacket(token: string, targetChatId: string, flowId: string) {
   const sb = getSupabase();
   const { data: flow } = await sb
@@ -63,46 +81,101 @@ export async function sendKdpPacket(token: string, targetChatId: string, flowId:
     : { data: null };
 
   const qd = (cand?.questionnaire_data || {}) as Record<string, string>;
+  const fullName = cand?.full_name || "Nomzod";
+  const shortCode = `#KDP-${String(flow.application_id || flow.id).slice(-4).toUpperCase()}`;
   const address = cand?.address || qd.address || "—";
   const birthDate = cand?.birth_date || qd.birthDate || "—";
+  const gender = cand?.gender || qd.gender || "—";
+  const education = cand?.education || qd.education || "—";
+  const experience = cand?.experience_years || qd.totalExp || "—";
   const phone = flow.doc_phone || cand?.phone || "—";
+  const branch = vac?.branch || qd.branch || "—";
+  const position = vac?.position || qd.position || "—";
+  const toifa = qd.toifa || "0-toifa";
   const shift = flow.shift || qd.shift || vac?.shift || "—";
+  const salary = vac?.salary_band || "Shtat bo'yicha";
 
-  // Send 3 photos first (if available) as real Telegram photos
-  const photos: { fileId?: string; caption: string }[] = [
-    { fileId: flow.passport_front_file_id, caption: `🪪 Pasport / ID (Oldi) — ${cand?.full_name || ""}` },
-    { fileId: flow.passport_back_file_id, caption: `🪪 Pasport / ID (Orqasi) — ${cand?.full_name || ""}` },
-    { fileId: flow.photo_3x4_file_id, caption: `📸 3x4 Rasm — ${cand?.full_name || ""}` },
-  ];
+  // 1. Send all 3 photos grouped in ONE single album (sendMediaGroup) so multiple candidates never mix!
+  const media: { type: string; media: string; caption?: string; parse_mode?: string }[] = [];
+  if (flow.passport_front_file_id) {
+    media.push({
+      type: "photo",
+      media: flow.passport_front_file_id,
+      caption: `📎 <b>${shortCode} • ${fullName}</b>\n1) Pasport Oldi  |  2) Pasport Orqasi  |  3) 3x4 Rasm`,
+      parse_mode: "HTML",
+    });
+  }
+  if (flow.passport_back_file_id) {
+    media.push({ type: "photo", media: flow.passport_back_file_id });
+  }
+  if (flow.photo_3x4_file_id) {
+    media.push({ type: "photo", media: flow.photo_3x4_file_id });
+  }
 
-  for (const p of photos) {
-    if (p.fileId) {
-      await tgRaw(token, "sendPhoto", {
-        chat_id: targetChatId,
-        photo: p.fileId,
-        caption: p.caption,
-      });
+  let albumMsgId: number | undefined;
+  if (media.length > 0) {
+    const mgRes = await tgRaw(token, "sendMediaGroup", {
+      chat_id: targetChatId,
+      media,
+    });
+    if (mgRes?.ok && Array.isArray(mgRes.result) && mgRes.result[0]?.message_id) {
+      albumMsgId = mgRes.result[0].message_id;
     }
   }
 
-  const cardText =
-    `📂 <b>KDP — RASMIYLASHTIRISH UCHUN YANGI NOMZOD</b>\n\n` +
-    `👤 <b>F.I.O:</b> ${cand?.full_name || "—"}\n` +
-    `🎂 <b>Tug'ilgan sana:</b> ${birthDate}\n` +
-    `📱 <b>Telefon:</b> ${phone}\n` +
-    `🏠 <b>Aniq manzil:</b> ${address}\n` +
-    `🏢 <b>Filial:</b> ${vac?.branch || qd.branch || "—"}\n` +
-    `💼 <b>Lavozim:</b> ${vac?.position || qd.position || "—"}\n` +
-    `🕒 <b>Smena:</b> ${shift}\n` +
-    `📅 <b>Sinov sanasi:</b> ${flow.test_date || "—"}\n\n` +
-    `Hujjatlarni tekshirib, quyidagi tugmalardan birini tanlang:`;
+  const tashkentTomorrow = new Date(Date.now() + 5 * 3600 * 1000 + 86400000);
+  const tomorrowIso = tashkentTomorrow.toISOString().slice(0, 10);
+  const [ty, tm, td] = tomorrowIso.split("-");
+  const tomorrowDisplay = `${td}.${tm}.${ty}`;
 
-  await sendTelegramMessage(targetChatId, cardText, {
-    inline_keyboard: [
-      [{ text: "✅ Rasmiylashtirildi (Tasdiqlash)", callback_data: `kdp:approve:${flow.id}` }],
-      [{ text: "⚠️ Muammo bor (Izoh yuborish)", callback_data: `kdp:reject:${flow.id}` }],
-    ],
+  const previewSms = buildFinalWelcomeSms({
+    fullName,
+    tomorrowDisplay,
+    branch,
+    position,
+    toifa,
+    shift,
   });
+
+  const isCompleted = flow.step === "completed";
+  const cardText =
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `📂 <b>${shortCode} — KDP NOMZOD KARTOCHKASI</b>${isCompleted ? " ✅" : ""}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `👤 <b>F.I.O:</b> ${fullName}\n` +
+    `📱 <b>Telefon:</b> ${phone}\n` +
+    `🎂 <b>Tug'ilgan sana:</b> ${birthDate} (${gender})\n` +
+    `🏠 <b>Aniq manzil:</b> ${address}\n` +
+    `🎓 <b>Ma'lumoti:</b> ${education} | <b>Tajriba:</b> ${experience}\n\n` +
+    `🏢 <b>Filial / Do'kon:</b> ${branch}\n` +
+    `💼 <b>Lavozim:</b> ${position}\n` +
+    `🏷 <b>Toifa:</b> ${toifa}\n` +
+    `🕒 <b>Smena:</b> ${shift}\n` +
+    `💰 <b>Maosh:</b> ${salary}\n` +
+    `📅 <b>Sinov sanasi:</b> ${flow.test_date || "—"}\n\n` +
+    `✉️ <b>Nomzodga boradigan yakuniy xabar:</b>\n` +
+    `<blockquote>${previewSms}</blockquote>`;
+
+  // 2. Reply directly to that candidate's photo album so each candidate stays visually locked together!
+  const msgBody: Record<string, unknown> = {
+    chat_id: targetChatId,
+    text: cardText,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  };
+  if (albumMsgId) {
+    msgBody.reply_to_message_id = albumMsgId;
+  }
+  if (!isCompleted) {
+    msgBody.reply_markup = {
+      inline_keyboard: [
+        [{ text: "✅ Rasmiylashtirildi (Tasdiqlash)", callback_data: `kdp:approve:${flow.id}` }],
+        [{ text: "⚠️ Muammo bor (Izoh yuborish)", callback_data: `kdp:reject:${flow.id}` }],
+      ],
+    };
+  }
+
+  await tgRaw(token, "sendMessage", msgBody);
   return true;
 }
 
@@ -120,7 +193,7 @@ export async function finalizeHireAfterKdp(
   token: string,
   flowId: string,
   actorName: string
-): Promise<{ ok: boolean; candidateName?: string }> {
+): Promise<{ ok: boolean; candidateName?: string; finalSms?: string }> {
   const sb = getSupabase();
   const { data: flow } = await sb
     .from("ats_onboarding_flows")
@@ -216,6 +289,8 @@ export async function finalizeHireAfterKdp(
     : [];
   const surveySummary = surveyArr.map((s) => `${s.question}: ${s.answer}`).join(" | ");
   const qd = (cand?.questionnaire_data || {}) as Record<string, string>;
+  const shift = flow.shift || qd.shift || vac?.shift || "—";
+  const toifa = qd.toifa || "0-toifa";
 
   await appendHujjatlarRowToSheets({
     existingSpreadsheetId: setRow?.data?.googleSpreadsheetId,
@@ -231,7 +306,7 @@ export async function finalizeHireAfterKdp(
       experience: cand?.experience_years || qd.totalExp || "—",
       branch: vac?.branch || "—",
       position: vac?.position || "—",
-      shift: flow.shift || qd.shift || vac?.shift || "—",
+      shift,
       salary: vac?.salary_band || "—",
       testDate: flow.test_date || "—",
       passportFrontUrl: frontUrl,
@@ -250,17 +325,18 @@ export async function finalizeHireAfterKdp(
     related_application_id: flow.application_id,
   });
 
-  await sendTelegramMessage(
-    String(flow.chat_id),
-    `🎉 <b>Tabriklaymiz, ${cand?.full_name || ""}! Hujjatlaringiz rasmiylashtirildi va siz ishga qabul qilindingiz!</b>\n\n` +
-      `📅 Ishga chiqish sanangiz: <b>${tomorrowDisplay}</b> (ertaga)\n` +
-      `🏢 Filial: <b>${vac?.branch || "—"}</b>\n` +
-      `💼 Lavozim: <b>${vac?.position || "—"}</b>\n` +
-      `🕒 Smena: <b>${flow.shift || qd.shift || vac?.shift || "—"}</b> (15 daqiqa oldin kelishni unutmang)\n\n` +
-      `Aura jamoasiga xush kelibsiz! 🤝`
-  );
+  const finalSms = buildFinalWelcomeSms({
+    fullName: cand?.full_name || "",
+    tomorrowDisplay,
+    branch: vac?.branch || "—",
+    position: vac?.position || "—",
+    toifa,
+    shift,
+  });
 
-  return { ok: true, candidateName: cand?.full_name };
+  await sendTelegramMessage(String(flow.chat_id), finalSms);
+
+  return { ok: true, candidateName: cand?.full_name, finalSms };
 }
 
 export async function handleKdpCommand(
@@ -286,11 +362,11 @@ export async function handleKdpCommand(
       text:
         `👋 <b>KDP xodimi ${fromName}, xush kelibsiz!</b>\n\n` +
         `Siz Kadrlar hujjatlashtirish (KDP) bo'limi sifatida tizimga ulandingiz.\n` +
-        `Endi nomzodlar hujjatlarini yuborgan zahoti ularning <b>Pasport (old/orqa), Telefon, Manzil va 3x4 rasmi</b> avtomatik shu yerga kelib tushadi.\n\n` +
-        `Kutilayotgan nomzodlarni ko'rish uchun pastdagi tugmani bosing:`,
+        `Endi har bir nomzodning <b>3 ta rasmi bitta albomda</b>, unga javob (reply) sifatida esa <b>F.I.O, manzil, do'kon, lavozim, toifa, smena va yakuniy tabrik xati</b> alohida tartibda kelib tushadi.\n\n` +
+        `Pastdagi tugmalardan foydalaning:`,
       reply_markup: {
         keyboard: [
-          [{ text: "📋 KDP: Kutilayotganlar" }],
+          [{ text: "📋 KDP: Kutilayotganlar" }, { text: "📁 KDP: Rasmiylashtirilganlar" }],
           [{ text: "📋 Bo'sh ish o'rinlari" }, { text: "📄 Ariza holati" }],
         ],
         resize_keyboard: true,
@@ -307,7 +383,7 @@ export async function handleKdpCommand(
     return true;
   }
 
-  // 2. KDP xodimi "Muammo bor (Izoh)" bosgan bo'lsa va endi izoh matnini yozayotgan bo'lsa
+  // 2. KDP xodimi "Muammo bor (Izoh)" bosgan bo'lsa
   if (kdpPendingComments[cid]) {
     const flowId = kdpPendingComments[cid];
     const nextPending = { ...kdpPendingComments };
@@ -347,40 +423,55 @@ export async function handleKdpCommand(
     return true;
   }
 
-  // 3. KDP kutilayotgan nomzodlar ro'yxati
-  if (trimmed === "📋 KDP: Kutilayotganlar") {
+  // 3. KDP: Kutilayotganlar yoki Rasmiylashtirilganlar ro'yxati
+  if (trimmed === "📋 KDP: Kutilayotganlar" || trimmed === "📁 KDP: Rasmiylashtirilganlar") {
     if (!kdpChatIds.includes(cid)) {
       await sendTelegramMessage(cid, "🔐 Avval KDP kodini kiriting: <code>/kdp kdp2026</code>");
       return true;
     }
+    const isArchive = trimmed === "📁 KDP: Rasmiylashtirilganlar";
+    const targetStep = isArchive ? "completed" : "awaiting_kdp_approval";
+
     const sb = getSupabase();
-    const { data: pending } = await sb
+    const { data: list } = await sb
       .from("ats_onboarding_flows")
       .select("id, candidate_id, application_id, updated_at")
-      .eq("step", "awaiting_kdp_approval")
+      .eq("step", targetStep)
       .order("updated_at", { ascending: false })
-      .limit(20);
+      .limit(15);
 
-    if (!pending || pending.length === 0) {
+    if (!list || list.length === 0) {
       await sendTelegramMessage(
         cid,
-        "✅ Hozircha rasmiylashtirish kutilayotgan nomzodlar yo'q."
+        isArchive
+          ? "📁 Hozircha rasmiylashtirilgan nomzodlar yo'q."
+          : "✅ Hozircha rasmiylashtirish kutilayotgan nomzodlar yo'q."
       );
       return true;
     }
 
-    const candIds = pending.map((p) => p.candidate_id);
-    const { data: cands } = await sb
-      .from("ats_candidates")
-      .select("id, full_name, phone")
-      .in("id", candIds);
-    const cMap = new Map((cands || []).map((c) => [c.id, c]));
+    const candIds = list.map((p) => p.candidate_id);
+    const appIds = list.map((p) => p.application_id);
+    const [{ data: cands }, { data: apps }] = await Promise.all([
+      sb.from("ats_candidates").select("id, full_name, phone").in("id", candIds),
+      sb.from("ats_applications").select("id, vacancy_id").in("id", appIds),
+    ]);
+    const vacIds = Array.from(new Set((apps || []).map((a) => a.vacancy_id).filter(Boolean)));
+    const { data: vacs } = vacIds.length
+      ? await sb.from("ats_vacancies").select("id, branch, position").in("id", vacIds)
+      : { data: [] };
 
-    const buttons = pending.map((p) => {
+    const cMap = new Map((cands || []).map((c) => [c.id, c]));
+    const aMap = new Map((apps || []).map((a) => [a.id, a]));
+    const vMap = new Map((vacs || []).map((v) => [v.id, v]));
+
+    const buttons = list.map((p, i) => {
       const c = cMap.get(p.candidate_id);
+      const a = aMap.get(p.application_id);
+      const v = a ? vMap.get(a.vacancy_id) : undefined;
       return [
         {
-          text: `👤 ${c?.full_name || "Nomzod"} (${c?.phone || ""})`,
+          text: `${i + 1}. ${c?.full_name || "Nomzod"} — ${v?.branch || ""} • ${v?.position || ""}`,
           callback_data: `kdp:view:${p.id}`,
         },
       ];
@@ -388,7 +479,9 @@ export async function handleKdpCommand(
 
     await sendTelegramMessage(
       cid,
-      `📋 <b>KDP — Tasdiqlash kutilayotgan nomzodlar (${pending.length} ta):</b>\nHujjatlarini ko'rish uchun nomzodni tanlang:`,
+      isArchive
+        ? `📁 <b>KDP — So'nggi rasmiylashtirilganlar (${list.length} ta):</b>\nHujjatlarini ko'rish uchun tanlang:`
+        : `📋 <b>KDP — Tasdiqlash kutilayotganlar (${list.length} ta):</b>\nHar birini alohida ochib tekshiring:`,
       { inline_keyboard: buttons }
     );
     return true;
@@ -423,7 +516,10 @@ export async function handleKdpCallback(
     const flowId = data.replace("kdp:approve:", "");
     const res = await finalizeHireAfterKdp(token, flowId, `KDP (${fromName})`);
     const doneText = res.ok
-      ? `✅ <b>Rasmiylashtirildi!</b>\n👤 ${res.candidateName || "Nomzod"} ishga qabul qilindi, tabrik xati yuborildi va Google Sheets yangilandi.\n👮 Tasdiqladi: ${fromName}`
+      ? `✅ <b>Rasmiylashtirildi!</b>\n` +
+        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi va Google Sheets yangilandi.\n` +
+        `👮 Tasdiqladi: ${fromName}\n\n` +
+        `✉️ <b>Nomzodga yuborilgan yakuniy SMS nusxasi:</b>\n<blockquote>${res.finalSms || ""}</blockquote>`
       : "⚠️ Nomzod topilmadi yoki allaqachon rasmiylashtirilgan.";
 
     if (msgId) {

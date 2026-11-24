@@ -733,12 +733,13 @@ export async function moveApplicationStage(params: {
         { onConflict: "application_id" }
       );
 
+      const locationPhrase = track === "ofis_xodimi" ? "ofisda" : "do'kon hududida";
       const inviteText =
         params.customMessage?.trim() ||
         `🎉 <b>Tabriklaymiz, ${cand.full_name}!</b>\n\n` +
           `Siz <b>${vac.branch}</b> filialidagi <b>${vac.position}</b> lavozimi bo'yicha <b>1 kunlik sinov kuniga</b> taklif qilindingiz!\n` +
           `🕒 Smena: <b>${shiftVal}</b>\n\n` +
-          `⏰ <b>Muhim eslatma:</b> Sinov kuni biriktirilgan smenangizdan (<b>${shiftVal}</b>) <b>15 daqiqa oldin</b> do'kon hududida bo'lishingiz shart!\n\n` +
+          `⏰ <b>Muhim eslatma:</b> Sinov kuni biriktirilgan smenangizdan (<b>${shiftVal}</b>) <b>15 daqiqa oldin</b> ${locationPhrase} bo'lishingiz shart!\n\n` +
           `📅 Iltimos, sinov kuniga chiqish uchun o'zingizga qulay sanani tanlang:`;
 
       const tgRes = await sendTelegramMessage(cand.telegram_chat_id, inviteText, {

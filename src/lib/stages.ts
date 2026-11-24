@@ -219,6 +219,14 @@ export const TRACK_CONFIGS: Record<TrackType, TrackConfig> = {
         requiresEvaluation: true,
       },
       {
+        id: "test_kuni",
+        labelUz: "1 kunlik sinov kuni",
+        labelRu: "1-дневный тест-день",
+        shortUz: "Sinov kuni",
+        shortRu: "Тест-день",
+        color: "#7c3aed",
+      },
+      {
         id: "offer",
         labelUz: "Ish taklifi (3 kun)",
         labelRu: "Предложение о работе (3 дня)",

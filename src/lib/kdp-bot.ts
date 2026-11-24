@@ -123,20 +123,6 @@ export async function sendKdpPacket(token: string, targetChatId: string, flowId:
     }
   }
 
-  const tashkentTomorrow = new Date(Date.now() + 5 * 3600 * 1000 + 86400000);
-  const tomorrowIso = tashkentTomorrow.toISOString().slice(0, 10);
-  const [ty, tm, td] = tomorrowIso.split("-");
-  const tomorrowDisplay = `${td}.${tm}.${ty}`;
-
-  const previewSms = buildFinalWelcomeSms({
-    fullName,
-    tomorrowDisplay,
-    branch,
-    position,
-    toifa,
-    shift,
-  });
-
   const isCompleted = flow.step === "completed";
   const cardText =
     `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -153,8 +139,9 @@ export async function sendKdpPacket(token: string, targetChatId: string, flowId:
     `🕒 <b>Smena:</b> ${shift}\n` +
     `💰 <b>Maosh:</b> ${salary}\n` +
     `📅 <b>Sinov sanasi:</b> ${flow.test_date || "—"}\n\n` +
-    `✉️ <b>Nomzodga boradigan yakuniy xabar:</b>\n` +
-    `<blockquote>${previewSms}</blockquote>`;
+    (isCompleted
+      ? `✅ <b>Holat:</b> Rasmiylashtirilgan`
+      : `Hujjatlarni tekshirib, quyidagi tugmalardan birini tanlang:`);
 
   // 2. Reply directly to that candidate's photo album so each candidate stays visually locked together!
   const msgBody: Record<string, unknown> = {

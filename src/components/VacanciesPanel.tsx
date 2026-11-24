@@ -110,6 +110,7 @@ export default function VacanciesPanel({
 
   const filtered = useMemo(() => {
     return realVacancies.filter((v) => {
+      if (v.status === "paused") return false;
       if (vacancyTab === "active" && v.status === "closed") return false;
       if (vacancyTab === "closed" && v.status !== "closed") return false;
       if (search.trim()) {

@@ -1001,7 +1001,7 @@ export async function transferToLms(params: {
       hire_start_date: params.hireStartDate,
       lms_transferred_at: new Date().toISOString(),
       status: "hired",
-      current_stage: "hujjat_lms",
+      current_stage: "ishga_qabul",
     })
     .eq("id", app.id);
 
@@ -1026,12 +1026,54 @@ export async function transferToLms(params: {
     }
   }
 
+  const { data: cand } = await sb
+    .from("ats_candidates")
+    .select("*")
+    .eq("id", app.candidate_id)
+    .maybeSingle();
+
+  const workType: "office" | "store_warehouse" =
+    vac?.track === "ofis_xodimi" ? "office" : "store_warehouse";
+  const qd = (cand?.questionnaire_data || {}) as Record<string, string>;
+  const { syncHiredEmployeeToLms, HIRED_EMPLOYEE_KEYBOARD, buildAttendanceInstruction } =
+    await import("@/lib/lms-integration");
+
+  const lmsRes = await syncHiredEmployeeToLms({
+    applicationId: app.id,
+    candidateId: app.candidate_id,
+    fullName: cand?.full_name || "Yangi xodim",
+    phone: cand?.phone || "",
+    telegramChatId: String(cand?.telegram_chat_id || ""),
+    department: workType === "office" ? vac?.branch || "Ofis" : "Savdo bo'limi",
+    position: vac?.position || "Sotuvchi-konsultant",
+    category: qd.toifa || "0",
+    branch: vac?.branch || "",
+    hireStartDate: params.hireStartDate,
+    workType,
+    erpLogin: qd.erp_login || "",
+    erpPassword: qd.erp_password || "",
+  });
+
+  if (cand?.telegram_chat_id && lmsRes.ok) {
+    await sendTelegramMessage(
+      String(cand.telegram_chat_id),
+      `🎉 <b>Ishga qabul qilindingiz, ${cand.full_name}!</b>\n\n` +
+        `📚 <b>LMS O'quv platformasi:</b>\n` +
+        `🔗 ${lmsRes.lmsUrl}\n` +
+        `👤 Login: <code>${lmsRes.login}</code>\n` +
+        `🔑 Parol: <code>${lmsRes.password}</code>\n\n` +
+        buildAttendanceInstruction(workType) +
+        `\n\n👇 Pastdagi <b>📚 LMS</b> va <b>💼 ERP</b> tugmalaridan istalgan vaqtda foydalanishingiz mumkin.`,
+      HIRED_EMPLOYEE_KEYBOARD
+    );
+  }
+
   await logAudit({
     entityType: "application",
     entityId: app.id,
     actorId: params.actorId,
     actorName: params.actorName,
-    action: `LMS ga topshirildi (Ishga chiqish: ${params.hireStartDate})`,
+    action: `LMS ga topshirildi (Ishga chiqish: ${params.hireStartDate}, Login: ${lmsRes.login || "—"})`,
     newValue: "hired",
   });
 
@@ -1039,8 +1081,10 @@ export async function transferToLms(params: {
     direction: "outbound",
     system: "LMS",
     eventType: "LMS_ONBOARDING_HANDOFF",
-    payloadSummary: `Ariza ${app.id} o'qitish tizimiga topshirildi`,
-    status: "success",
+    payloadSummary: lmsRes.ok
+      ? `${cand?.full_name || app.id}: LMS login=${lmsRes.login} yaratildi`
+      : `Ariza ${app.id}: LMS xatosi (${lmsRes.error || "noma'lum"})`,
+    status: lmsRes.ok ? "success" : "failed",
   });
 
   return { ok: true };

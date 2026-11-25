@@ -1,5 +1,11 @@
 import { getSupabase, notifyApplicantsVacancyClosed } from "@/lib/supabase-db";
 import { appendHujjatlarRowToSheets, incrementStaffingFactInSheets } from "@/lib/google-sheets";
+import {
+  buildAttendanceInstruction,
+  ERP_TELEGRAM_USERNAME,
+  HIRED_EMPLOYEE_KEYBOARD,
+  syncHiredEmployeeToLms,
+} from "@/lib/lms-integration";
 import { sendTelegramMessage } from "@/lib/telegram";
 
 const DEFAULT_KDP_CODE = "kdp2026";
@@ -29,7 +35,8 @@ export async function getKdpSettings() {
       ? data.kdpAccessCode.trim()
       : DEFAULT_KDP_CODE;
   const kdpPendingComments = (data.kdpPendingComments || {}) as Record<string, string>;
-  return { data, kdpChatIds, kdpAccessCode, kdpPendingComments };
+  const kdpPendingErp = (data.kdpPendingErp || {}) as Record<string, string>;
+  return { data, kdpChatIds, kdpAccessCode, kdpPendingComments, kdpPendingErp };
 }
 
 async function saveKdpSettingsPatch(patch: Record<string, unknown>) {
@@ -179,8 +186,15 @@ export async function notifyAllKdpStaff(token: string, flowId: string): Promise<
 export async function finalizeHireAfterKdp(
   token: string,
   flowId: string,
-  actorName: string
-): Promise<{ ok: boolean; candidateName?: string; finalSms?: string }> {
+  actorName: string,
+  erpCreds?: { erpLogin?: string; erpPassword?: string }
+): Promise<{
+  ok: boolean;
+  candidateName?: string;
+  finalSms?: string;
+  lmsLogin?: string;
+  lmsPassword?: string;
+}> {
   const sb = getSupabase();
   const { data: flow } = await sb
     .from("ats_onboarding_flows")
@@ -312,6 +326,38 @@ export async function finalizeHireAfterKdp(
     related_application_id: flow.application_id,
   });
 
+  // Sync newly hired employee to TeachMe LMS (auto-generates LMS login & password)
+  const workType: "office" | "store_warehouse" =
+    vac?.track === "ofis_xodimi" ? "office" : "store_warehouse";
+  const department = workType === "office" ? vac?.branch || "Ofis" : "Savdo bo'limi";
+
+  const lmsRes = await syncHiredEmployeeToLms({
+    applicationId: flow.application_id,
+    candidateId: flow.candidate_id,
+    fullName: cand?.full_name || "Yangi xodim",
+    phone: flow.doc_phone || cand?.phone || "",
+    telegramChatId: String(flow.chat_id || ""),
+    department,
+    position: vac?.position || "Sotuvchi-konsultant",
+    category: toifa,
+    branch: vac?.branch || "",
+    hireStartDate: tomorrowIso,
+    workType,
+    erpLogin: erpCreds?.erpLogin || "",
+    erpPassword: erpCreds?.erpPassword || "",
+  });
+
+  await sb.from("ats_integration_events").insert({
+    id: `evt-${Date.now()}-lms`,
+    direction: "outbound",
+    system: "LMS",
+    event_type: "LMS_AUTO_HIRE_SYNC",
+    payload_summary: lmsRes.ok
+      ? `${cand?.full_name}: LMS login=${lmsRes.login} yaratildi`
+      : `${cand?.full_name}: LMS xatosi (${lmsRes.error || "noma'lum"})`,
+    status: lmsRes.ok ? "success" : "failed",
+  });
+
   const finalSms = buildFinalWelcomeSms({
     fullName: cand?.full_name || "",
     tomorrowDisplay,
@@ -321,9 +367,28 @@ export async function finalizeHireAfterKdp(
     shift,
   });
 
-  await sendTelegramMessage(String(flow.chat_id), finalSms);
+  const accessBlock =
+    `\n\n━━━━━━━━━━━━━━━━━━━━\n` +
+    `📚 <b>LMS O'quv platformasi:</b>\n` +
+    `🔗 ${lmsRes.lmsUrl}\n` +
+    `👤 Login: <code>${lmsRes.login || "—"}</code>\n` +
+    `🔑 Parol: <code>${lmsRes.password || "—"}</code>\n\n` +
+    `💼 <b>ERP tizimi (${ERP_TELEGRAM_USERNAME}):</b>\n` +
+    (erpCreds?.erpLogin
+      ? `👤 Login: <code>${erpCreds.erpLogin}</code>\n🔑 Parol: <code>${erpCreds.erpPassword || "—"}</code>\n\n`
+      : `<i>ERP login/parol KDP tomonidan alohida beriladi.</i>\n\n`) +
+    buildAttendanceInstruction(workType) +
+    `\n\n👇 Istalgan vaqtda pastdagi <b>📚 LMS</b> va <b>💼 ERP</b> tugmalari orqali kirish ma'lumotlaringizni qayta ko'rishingiz mumkin.`;
 
-  return { ok: true, candidateName: cand?.full_name, finalSms };
+  await sendTelegramMessage(String(flow.chat_id), finalSms + accessBlock, HIRED_EMPLOYEE_KEYBOARD);
+
+  return {
+    ok: true,
+    candidateName: cand?.full_name,
+    finalSms,
+    lmsLogin: lmsRes.login,
+    lmsPassword: lmsRes.password,
+  };
 }
 
 export async function handleKdpCommand(
@@ -334,7 +399,7 @@ export async function handleKdpCommand(
 ): Promise<boolean> {
   const cid = String(chatId);
   const trimmed = text.trim();
-  const { kdpChatIds, kdpAccessCode, kdpPendingComments } = await getKdpSettings();
+  const { kdpChatIds, kdpAccessCode, kdpPendingComments, kdpPendingErp } = await getKdpSettings();
 
   // 1. KDP kirish kodi: /kdp kdp2026 yoki shunchaki kdp2026
   if (
@@ -367,6 +432,38 @@ export async function handleKdpCommand(
       cid,
       "🔐 KDP bo'limiga kirish uchun maxsus kodni yuboring:\nMasalan: <code>/kdp kdp2026</code>"
     );
+    return true;
+  }
+
+  // 2.0 KDP xodimi "Hujjatlarni tasdiqlash" dan keyin ERP login/parol kiritayotgan bo'lsa
+  if (kdpPendingErp[cid]) {
+    const flowId = kdpPendingErp[cid];
+    const nextPendingErp = { ...kdpPendingErp };
+    delete nextPendingErp[cid];
+    await saveKdpSettingsPatch({ kdpPendingErp: nextPendingErp });
+
+    let erpLogin = "";
+    let erpPassword = "";
+    if (trimmed !== "-" && trimmed.toLowerCase() !== "yo'q") {
+      const parts = trimmed.split(/[\s/|:,]+/).filter(Boolean);
+      erpLogin = parts[0] || "";
+      erpPassword = parts.slice(1).join(" ") || "";
+    }
+
+    const res = await finalizeHireAfterKdp(token, flowId, `KDP (${fromName})`, {
+      erpLogin,
+      erpPassword,
+    });
+
+    const doneText = res.ok
+      ? `✅ <b>Rasmiylashtirildi va LMSga uzatildi!</b>\n` +
+        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi.\n` +
+        `📚 LMS Login: <code>${res.lmsLogin || "—"}</code> | Parol: <code>${res.lmsPassword || "—"}</code>\n` +
+        `💼 ERP (${ERP_TELEGRAM_USERNAME}): <code>${erpLogin || "kiritilmadi"}</code>\n` +
+        `👮 Tasdiqladi: ${fromName}`
+      : "⚠️ Nomzod topilmadi yoki allaqachon rasmiylashtirilgan.";
+
+    await sendTelegramMessage(cid, doneText);
     return true;
   }
 
@@ -486,7 +583,7 @@ export async function handleKdpCallback(
 ): Promise<boolean> {
   if (!data.startsWith("kdp:")) return false;
   const cid = String(chatId);
-  const { kdpChatIds, kdpPendingComments } = await getKdpSettings();
+  const { kdpChatIds, kdpPendingComments, kdpPendingErp } = await getKdpSettings();
 
   if (!kdpChatIds.includes(cid)) {
     await sendTelegramMessage(cid, "🔐 Bu amal faqat KDP xodimlari uchun.");
@@ -501,23 +598,15 @@ export async function handleKdpCallback(
 
   if (data.startsWith("kdp:approve:")) {
     const flowId = data.replace("kdp:approve:", "");
-    const res = await finalizeHireAfterKdp(token, flowId, `KDP (${fromName})`);
-    const doneText = res.ok
-      ? `✅ <b>Rasmiylashtirildi!</b>\n` +
-        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi, tabrik xati yuborildi va Google Sheets yangilandi.\n` +
-        `👮 Tasdiqladi: ${fromName}`
-      : "⚠️ Nomzod topilmadi yoki allaqachon rasmiylashtirilgan.";
-
-    if (msgId) {
-      await tgRaw(token, "editMessageText", {
-        chat_id: chatId,
-        message_id: msgId,
-        text: doneText,
-        parse_mode: "HTML",
-      });
-    } else {
-      await sendTelegramMessage(cid, doneText);
-    }
+    await saveKdpSettingsPatch({
+      kdpPendingErp: { ...kdpPendingErp, [cid]: flowId },
+    });
+    await sendTelegramMessage(
+      cid,
+      `🔑 <b>Yakuniy bosqich: ERP (${ERP_TELEGRAM_USERNAME}) login va parolini kiriting</b>\n\n` +
+        `Masalan: <code>a.rahimov / Erp2026</code>\n` +
+        `<i>(Agar ERP hali tayyor bo'lmasa, shunchaki <code>-</code> deb yuboring — xodim baribir LMS login/paroli bilan ishga qabul qilinadi.)</i>`
+    );
     return true;
   }
 

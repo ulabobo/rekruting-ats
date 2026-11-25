@@ -10,6 +10,7 @@ import {
 import { sendTelegramMessage } from "@/lib/telegram";
 import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
 import { handleKdpCallback, handleKdpCommand } from "@/lib/kdp-bot";
+import { handleHiredEmployeeMenuCommand } from "@/lib/lms-integration";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { CandidateSource, TrackType } from "@/types/ats";
 
@@ -906,6 +907,10 @@ export async function POST(req: NextRequest) {
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "KDP";
       const handledKdp = await handleKdpCommand(token, chatId, text, fromName);
       if (handledKdp) {
+        return NextResponse.json({ ok: true });
+      }
+      const handledHired = await handleHiredEmployeeMenuCommand(chatId, text);
+      if (handledHired) {
         return NextResponse.json({ ok: true });
       }
     }

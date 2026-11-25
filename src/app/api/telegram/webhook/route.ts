@@ -517,50 +517,64 @@ export async function POST(req: NextRequest) {
           await askNextQuestion(token, chatId, st);
           return NextResponse.json({ ok: true });
         }
-        const { data: allVacs } = await sb.from("ats_vacancies").select("region");
+        const { data: allVacs } = await sb
+          .from("ats_vacancies")
+          .select("region")
+          .in("status", ["open", "accepted"])
+          .gt("headcount", 0)
+          .not("id", "like", "vac-res-%")
+          .not("id", "like", "vac-city-%");
         const regions = Array.from(
-          new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-        ).filter(
-          (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
-        ) as string[];
+          new Set((allVacs || []).map((v) => v.region).filter(Boolean))
+        ).filter((r) => r !== "Boshqa hudud") as string[];
         await editOrSend(
           token,
           chatId,
           msgId,
-          "✅ <b>Davom etamiz!</b> Qaysi hududda ishlamoqchisiz? Hududni tanlang:",
-          {
-            inline_keyboard: [
-              ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
-              [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
-            ],
-          }
+          regions.length > 0
+            ? "✅ <b>Davom etamiz!</b> Qaysi hududda ishlamoqchisiz? Hududni tanlang:"
+            : "Hozircha shtat bo'yicha ochiq vakansiyalar mavjud emas.",
+          regions.length > 0
+            ? {
+                inline_keyboard: regions.map((r) => [
+                  { text: `📍 ${r}`, callback_data: `reg:${r}` },
+                ]),
+              }
+            : undefined
         );
         return NextResponse.json({ ok: true });
       }
 
       if (data === "back:reg") {
-        const { data: allVacs } = await sb.from("ats_vacancies").select("region");
+        const { data: allVacs } = await sb
+          .from("ats_vacancies")
+          .select("region")
+          .in("status", ["open", "accepted"])
+          .gt("headcount", 0)
+          .not("id", "like", "vac-res-%")
+          .not("id", "like", "vac-city-%");
         const regions = Array.from(
-          new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-        ).filter(
-          (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
-        ) as string[];
+          new Set((allVacs || []).map((v) => v.region).filter(Boolean))
+        ).filter((r) => r !== "Boshqa hudud") as string[];
         await editOrSend(
           token,
           chatId,
           msgId,
-          "Qaysi hududda ishlamoqchisiz? Hududni tanlang:",
-          {
-            inline_keyboard: [
-              ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
-              [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
-            ],
-          }
+          regions.length > 0
+            ? "Qaysi hududda ishlamoqchisiz? Hududni tanlang:"
+            : "Hozircha shtat bo'yicha ochiq vakansiyalar mavjud emas.",
+          regions.length > 0
+            ? {
+                inline_keyboard: regions.map((r) => [
+                  { text: `📍 ${r}`, callback_data: `reg:${r}` },
+                ]),
+              }
+            : undefined
         );
         return NextResponse.json({ ok: true });
       }
 
-      // 1. Viloyat tanlandi -> To'g'ridan-to'g'ri shu viloyatdagi Filiallar (Bosh ofis) chiqadi!
+      // 1. Viloyat tanlandi -> Faqat shtatda ochiq vakansiyasi bor filiallar chiqadi
       if (data.startsWith("reg:")) {
         const region = data.replace("reg:", "");
         await trackBotFunnelStep({
@@ -572,14 +586,14 @@ export async function POST(req: NextRequest) {
         const { data: vacs } = await sb
           .from("ats_vacancies")
           .select("*")
-          .eq("region", region);
+          .eq("region", region)
+          .in("status", ["open", "accepted"])
+          .gt("headcount", 0)
+          .not("id", "like", "vac-res-%")
+          .not("id", "like", "vac-city-%");
 
-        const baseBranches =
-          region === "Qarshi shahri"
-            ? ["Qarshi (Markaziy filial)", "Qarshi-2"]
-            : [];
         const branches = Array.from(
-          new Set([...baseBranches, ...(vacs || []).map((v) => v.branch).filter(Boolean)])
+          new Set((vacs || []).map((v) => v.branch).filter(Boolean))
         );
         const city = vacs?.[0]?.city || region;
 
@@ -595,7 +609,9 @@ export async function POST(req: NextRequest) {
           token,
           chatId,
           msgId,
-          `📍 Hudud: <b>${region}</b>\nFilialni (yoki Bosh ofisni) tanlang:`,
+          branches.length > 0
+            ? `📍 Hudud: <b>${region}</b>\nFilialni (yoki Bosh ofisni) tanlang:`
+            : `📍 <b>${region}</b> hududida hozircha ochiq vakansiyalar mavjud emas.`,
           {
             inline_keyboard: [
               ...branches.map((b) => [{ text: `🏢 ${b}`, callback_data: `branch:${b}` }]),
@@ -606,7 +622,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // 2. Filial tanlandi -> Ochiq vakansiyalar + Passiv zaxira lavozimlari (rahbar lavozimlarisiz)
+      // 2. Filial tanlandi -> Faqat shtatdagi ochiq vakansiyalar (zaxira vakansiyalarisiz)
       if (data.startsWith("branch:")) {
         const branch = data.replace("branch:", "");
         await trackBotFunnelStep({
@@ -628,37 +644,18 @@ export async function POST(req: NextRequest) {
           .from("ats_vacancies")
           .select("*")
           .in("status", ["open", "accepted"])
+          .gt("headcount", 0)
+          .not("id", "like", "vac-res-%")
+          .not("id", "like", "vac-city-%")
           .eq("branch", branch);
-
-        const openPosLower = new Set(
-          (openVacs || []).map((v) => v.position.trim().toLowerCase())
-        );
-
-        const passiveCatalog = branch.toLowerCase().includes("bosh ofis")
-          ? [
-              "HR mutaxassisi",
-              "Buxgalter",
-              "Marketing mutaxassisi",
-              "Call-markaz operatori",
-              "IT mutaxassisi",
-              "Ofis menejeri",
-            ]
-          : ["Sotuvchi-konsultant", "Kassir", "Omborchi", "Tozalik xodimi"];
-
-        const passiveButtons = passiveCatalog
-          .filter((p) => !openPosLower.has(p.toLowerCase()))
-          .map((p) => [
-            {
-              text: `📋 ${p} (Zaxira uchun ariza)`,
-              callback_data: `passive:${p}`,
-            },
-          ]);
 
         await editOrSend(
           token,
           chatId,
           msgId,
-          `🏢 <b>${branch}</b> — Lavozimni tanlang:`,
+          (openVacs || []).length > 0
+            ? `🏢 <b>${branch}</b> — Ochiq lavozimni tanlang:`
+            : `🏢 <b>${branch}</b> filialida hozircha ochiq vakansiyalar yo'q.`,
           {
             inline_keyboard: [
               ...(openVacs || []).map((v) => [
@@ -667,7 +664,6 @@ export async function POST(req: NextRequest) {
                   callback_data: `vac:${v.id}`,
                 },
               ]),
-              ...passiveButtons,
               [{ text: "⬅️ Orqaga", callback_data: `reg:${st.region || ""}` }],
             ],
           }
@@ -978,25 +974,31 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const { data: allVacs } = await sb.from("ats_vacancies").select("region");
+      const { data: allVacs } = await sb
+        .from("ats_vacancies")
+        .select("region")
+        .in("status", ["open", "accepted"])
+        .gt("headcount", 0)
+        .not("id", "like", "vac-res-%")
+        .not("id", "like", "vac-city-%");
       const regions = Array.from(
-        new Set(["Qarshi shahri", ...(allVacs || []).map((v) => v.region).filter(Boolean)])
-      ).filter(
-        (r) => r !== "Boshqa hudud" && !r.toLowerCase().includes("toshkent")
-      ) as string[];
+        new Set((allVacs || []).map((v) => v.region).filter(Boolean))
+      ).filter((r) => r !== "Boshqa hudud") as string[];
 
       await tgCall(token, "sendMessage", {
         chat_id: chatId,
         text:
           regions.length > 0
             ? "Qaysi hududda ishlamoqchisiz? Hududni tanlang:"
-            : "Hozircha ochiq vakansiyalar mavjud emas, ammo ariza qoldirishingiz mumkin:",
-        reply_markup: {
-          inline_keyboard: [
-            ...regions.map((r) => [{ text: `📍 ${r}`, callback_data: `reg:${r}` }]),
-            [{ text: "🌐 Boshqa hudud (Ariza qoldirish)", callback_data: "reserve:Boshqa hudud" }],
-          ],
-        },
+            : "Hozircha shtat bo'yicha ochiq vakansiyalar mavjud emas.",
+        reply_markup:
+          regions.length > 0
+            ? {
+                inline_keyboard: regions.map((r) => [
+                  { text: `📍 ${r}`, callback_data: `reg:${r}` },
+                ]),
+              }
+            : undefined,
       });
       return NextResponse.json({ ok: true });
     }

@@ -10,6 +10,7 @@ import {
 import { sendTelegramMessage } from "@/lib/telegram";
 import { handleOnboardingCallback, handleOnboardingMessage } from "@/lib/onboarding-bot";
 import { handleKdpCallback, handleKdpCommand } from "@/lib/kdp-bot";
+import { handleManagerCallback, handleManagerCommand } from "@/lib/manager-bot";
 import { handleHiredEmployeeMenuCommand } from "@/lib/lms-integration";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { CandidateSource, TrackType } from "@/types/ats";
@@ -443,6 +444,13 @@ export async function POST(req: NextRequest) {
         const fromName =
           [cq.from?.first_name, cq.from?.last_name].filter(Boolean).join(" ") || "KDP";
         await handleKdpCallback(token, chatId, msgId, data, fromName);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data.startsWith("mgr:")) {
+        const fromName =
+          [cq.from?.first_name, cq.from?.last_name].filter(Boolean).join(" ") || "Menejer";
+        await handleManagerCallback(token, chatId, msgId, data, fromName);
         return NextResponse.json({ ok: true });
       }
 
@@ -904,9 +912,13 @@ export async function POST(req: NextRequest) {
 
     if (text) {
       const fromName =
-        [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "KDP";
+        [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "Foydalanuvchi";
       const handledKdp = await handleKdpCommand(token, chatId, text, fromName);
       if (handledKdp) {
+        return NextResponse.json({ ok: true });
+      }
+      const handledMgr = await handleManagerCommand(token, chatId, text, fromName);
+      if (handledMgr) {
         return NextResponse.json({ ok: true });
       }
       const handledHired = await handleHiredEmployeeMenuCommand(chatId, text);

@@ -898,6 +898,14 @@ export default function AtsDashboard({
                                 app.currentStage
                               );
 
+                              const attendance = cand.questionnaireData?.interviewAttendance;
+                              const cardTintClass =
+                                attendance === "arrived"
+                                  ? "border-emerald-300 bg-emerald-50/85 hover:border-emerald-400"
+                                  : attendance === "no_show"
+                                  ? "border-rose-300 bg-rose-50/90 hover:border-rose-400"
+                                  : "border-slate-100 bg-white hover:border-[#5865f2]/40";
+
                               return (
                                 <div
                                   key={app.id}
@@ -906,8 +914,27 @@ export default function AtsDashboard({
                                     if (!isAutopilot) setDraggedAppId(app.id);
                                   }}
                                   onClick={() => setSelectedAppId(app.id)}
-                                  className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_4px_20px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-[#5865f2]/40 hover:shadow-md"
+                                  className={`cursor-pointer rounded-2xl border p-4 shadow-[0_4px_20px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-md ${cardTintClass}`}
                                 >
+                                  {attendance && (
+                                    <div className="mb-2 flex items-center justify-end">
+                                      <span
+                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                                          attendance === "arrived"
+                                            ? "bg-emerald-600 text-white"
+                                            : "bg-rose-600 text-white"
+                                        }`}
+                                      >
+                                        {attendance === "arrived"
+                                          ? lang === "ru"
+                                            ? "✓ Пришёл на интервью"
+                                            : "✓ Suhbatga keldi"
+                                          : lang === "ru"
+                                          ? "✕ Не пришёл"
+                                          : "✕ Suhbatga kelmadi"}
+                                      </span>
+                                    </div>
+                                  )}
                                   {/* Avatar + Name + Position (2-rasm uslubida) */}
                                   <div className="flex items-center gap-3">
                                     {cand.avatarUrl ? (

@@ -17,6 +17,7 @@ import {
 } from "@/types/ats";
 import { TRACK_CONFIGS } from "@/lib/stages";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { notifyBranchManagerOnInterview } from "@/lib/manager-bot";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -790,6 +791,10 @@ export async function moveApplicationStage(params: {
         lang: params.lang,
         customText: params.customMessage,
       });
+
+      if (params.targetStage === "rahbar_suhbati" && vac.branch) {
+        await notifyBranchManagerOnInterview(vac.branch, app.id);
+      }
     }
   }
 

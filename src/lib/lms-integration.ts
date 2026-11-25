@@ -148,7 +148,7 @@ export async function handleHiredEmployeeMenuCommand(
     .select("*")
     .eq("candidate_id", cand.id)
     .eq("status", "hired")
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -214,7 +214,7 @@ export async function autoSyncLegacyHiredEmployees(limit = 20): Promise<number> 
     .from("ats_applications")
     .select("id, candidate_id, vacancy_id, hire_start_date, created_at")
     .eq("status", "hired")
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(100);
 
   if (!hiredApps || hiredApps.length === 0) return 0;

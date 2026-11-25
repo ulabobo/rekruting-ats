@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase-db";
 import { DEFAULT_SURVEY_ITEMS, sendTelegramMessage } from "@/lib/telegram";
+import { autoSyncLegacyHiredEmployees } from "@/lib/lms-integration";
 import { SurveyQuestionItem } from "@/types/ats";
 
 export const dynamic = "force-dynamic";
@@ -229,6 +230,9 @@ export async function GET() {
       }
     }
 
+    // Automatically sync any legacy hired employees (e.g. hired before this update) to LMS & push LMS/ERP keyboard
+    const legacyHiredSynced = await autoSyncLegacyHiredEmployees(20).catch(() => 0);
+
     return NextResponse.json({
       ok: true,
       processed: activeFlows.length,
@@ -237,6 +241,7 @@ export async function GET() {
       remindersSent,
       timedOut,
       abandonedReminded,
+      legacyHiredSynced,
     });
   } catch (err) {
     return NextResponse.json(

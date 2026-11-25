@@ -95,6 +95,7 @@ export async function syncHiredEmployeeToLms(params: {
             erp_password: params.erpPassword || prev.erp_password || "",
             work_type: params.workType,
             hire_start_date: params.hireStartDate,
+            lms_menu_synced: "1",
           },
         })
         .eq("id", cand.id);
@@ -124,9 +125,12 @@ export async function handleHiredEmployeeMenuCommand(
   const trimmed = text.trim();
   const isLmsBtn = trimmed === "📚 LMS";
   const isErpBtn = trimmed === "💼 ERP";
-  const isStart = trimmed === "/start";
+  const isStartOrOldMenu =
+    trimmed === "/start" ||
+    trimmed === "📋 Bo'sh ish o'rinlari" ||
+    trimmed === "📄 Ariza holati";
 
-  if (!isLmsBtn && !isErpBtn && !isStart) return false;
+  if (!isLmsBtn && !isErpBtn && !isStartOrOldMenu) return false;
 
   const sb = getSupabase();
   const { data: cand } = await sb
@@ -148,18 +152,18 @@ export async function handleHiredEmployeeMenuCommand(
     .limit(1)
     .maybeSingle();
 
-  // Only intercept /start if the user is already hired; always handle 📚 LMS / 💼 ERP
-  if (!hiredApp && isStart) return false;
+  // Only intercept /start or old applicant buttons if the user is already hired
+  if (!hiredApp && isStartOrOldMenu) return false;
 
   const qd = (cand.questionnaire_data as Record<string, string>) || {};
   const workType: "office" | "store_warehouse" =
     qd.work_type === "office" ? "office" : "store_warehouse";
 
-  if (isStart && hiredApp) {
+  if (isStartOrOldMenu && hiredApp) {
     await sendTelegramMessage(
       String(chatId),
       `👋 <b>Xush kelibsiz, ${cand.full_name}!</b>\n\n` +
-        `Siz AURA jamoasining a'zosisiz. O'quv platformasi (LMS) va ERP kirish ma'lumotlarini olish uchun pastdagi tugmalardan foydalaning:`,
+        `Siz AURA jamoasining a'zosisiz. O'quv platformasi (LMS) va ERP kirish ma'lumotlarini olish uchun pastdagi <b>📚 LMS</b> va <b>💼 ERP</b> tugmalaridan foydalaning:`,
       HIRED_EMPLOYEE_KEYBOARD
     );
     return true;
@@ -197,4 +201,77 @@ export async function handleHiredEmployeeMenuCommand(
   }
 
   return false;
+}
+
+/**
+ * Automatically syncs previously hired employees (before this update) to LMS
+ * and pushes the new 📚 LMS / 💼 ERP keyboard to their Telegram without requiring /start.
+ * Strictly runs once per employee (tracked via questionnaire_data.lms_menu_synced = "1").
+ */
+export async function autoSyncLegacyHiredEmployees(limit = 20): Promise<number> {
+  const sb = getSupabase();
+  const { data: hiredApps } = await sb
+    .from("ats_applications")
+    .select("id, candidate_id, vacancy_id, hire_start_date, created_at")
+    .eq("status", "hired")
+    .order("updated_at", { ascending: false })
+    .limit(100);
+
+  if (!hiredApps || hiredApps.length === 0) return 0;
+
+  let syncedCount = 0;
+  for (const app of hiredApps) {
+    if (syncedCount >= limit) break;
+    const { data: cand } = await sb
+      .from("ats_candidates")
+      .select("*")
+      .eq("id", app.candidate_id)
+      .maybeSingle();
+    if (!cand || !cand.telegram_chat_id) continue;
+
+    const qd = (cand.questionnaire_data as Record<string, string>) || {};
+    if (qd.lms_menu_synced === "1") continue;
+
+    const { data: vac } = app.vacancy_id
+      ? await sb.from("ats_vacancies").select("*").eq("id", app.vacancy_id).maybeSingle()
+      : { data: null };
+
+    const workType: "office" | "store_warehouse" =
+      vac?.track === "ofis_xodimi" ? "office" : "store_warehouse";
+    const hireDate =
+      app.hire_start_date ||
+      (app.created_at ? String(app.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
+
+    const lmsRes = await syncHiredEmployeeToLms({
+      applicationId: app.id,
+      candidateId: cand.id,
+      fullName: cand.full_name || "Xodim",
+      phone: cand.phone || "",
+      telegramChatId: String(cand.telegram_chat_id),
+      department: workType === "office" ? vac?.branch || "Ofis" : "Savdo bo'limi",
+      position: vac?.position || "Sotuvchi-konsultant",
+      category: qd.toifa || "0",
+      branch: vac?.branch || "",
+      hireStartDate: hireDate,
+      workType,
+      erpLogin: qd.erp_login || "",
+      erpPassword: qd.erp_password || "",
+    });
+
+    await sendTelegramMessage(
+      String(cand.telegram_chat_id),
+      `🎉 <b>Yangilik, ${cand.full_name}!</b>\n\n` +
+        `Endi botda siz uchun <b>📚 LMS</b> (o'quv platformasi) va <b>💼 ERP</b> (${ERP_TELEGRAM_USERNAME}) tugmalari ishga tushdi.\n` +
+        (lmsRes.login
+          ? `👤 LMS Login: <code>${lmsRes.login}</code>\n🔑 Parol: <code>${lmsRes.password || "—"}</code>\n\n`
+          : "\n") +
+        buildAttendanceInstruction(workType) +
+        `\n\n👇 Istalgan vaqtda pastdagi tugmalardan foydalaning:`,
+      HIRED_EMPLOYEE_KEYBOARD
+    );
+
+    syncedCount++;
+  }
+
+  return syncedCount;
 }

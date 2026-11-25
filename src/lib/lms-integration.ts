@@ -148,7 +148,7 @@ export async function handleHiredEmployeeMenuCommand(
     .select("*")
     .eq("candidate_id", cand.id)
     .eq("status", "hired")
-    .order("created_at", { ascending: false })
+    .order("applied_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -212,9 +212,9 @@ export async function autoSyncLegacyHiredEmployees(limit = 20): Promise<number> 
   const sb = getSupabase();
   const { data: hiredApps } = await sb
     .from("ats_applications")
-    .select("id, candidate_id, vacancy_id, hire_start_date, created_at")
+    .select("id, candidate_id, vacancy_id, track, hire_start_date, applied_at")
     .eq("status", "hired")
-    .order("created_at", { ascending: false })
+    .order("applied_at", { ascending: false })
     .limit(100);
 
   if (!hiredApps || hiredApps.length === 0) return 0;
@@ -237,10 +237,10 @@ export async function autoSyncLegacyHiredEmployees(limit = 20): Promise<number> 
       : { data: null };
 
     const workType: "office" | "store_warehouse" =
-      vac?.track === "ofis_xodimi" ? "office" : "store_warehouse";
+      app.track === "ofis_xodimi" || vac?.track === "ofis_xodimi" ? "office" : "store_warehouse";
     const hireDate =
       app.hire_start_date ||
-      (app.created_at ? String(app.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
+      (app.applied_at ? String(app.applied_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
 
     const lmsRes = await syncHiredEmployeeToLms({
       applicationId: app.id,

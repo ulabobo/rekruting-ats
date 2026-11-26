@@ -899,6 +899,17 @@ export default function AtsDashboard({
                               );
 
                               const attendance = cand.questionnaireData?.interviewAttendance;
+                              const onbFlow = db.onboardingFlows?.find(
+                                (f) => f.applicationId === app.id
+                              );
+                              const formattedTestDate = (() => {
+                                const raw = onbFlow?.testDate;
+                                if (!raw) return "";
+                                const parts = raw.split("-");
+                                return parts.length === 3
+                                  ? `${parts[2]}.${parts[1]}.${parts[0]}`
+                                  : raw;
+                              })();
                               const cardTintClass =
                                 attendance === "arrived"
                                   ? "border-emerald-300 bg-emerald-50/85 hover:border-emerald-400"
@@ -988,6 +999,15 @@ export default function AtsDashboard({
 
                                   {/* Tags */}
                                   <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                    {formattedTestDate ? (
+                                      <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-bold text-violet-700">
+                                        📅 {lang === "ru" ? "Тест" : "Sinov"}: {formattedTestDate}
+                                      </span>
+                                    ) : app.currentStage === "test_kuni" ? (
+                                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                                        ⏳ {lang === "ru" ? "Ожидает выбора даты" : "Sinov kuni kutilmoqda"}
+                                      </span>
+                                    ) : null}
                                     {cand.tags.slice(0, 2).map((tg) => (
                                       <span
                                         key={tg}

@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Ban,
   Bookmark,
+  CalendarDays,
   CheckCircle2,
   GraduationCap,
   Info,
@@ -62,6 +63,13 @@ export default function CandidateDrawer({
   const appEvaluations = db.evaluations.filter((e) => e.applicationId === application.id);
   const appDocs = db.documents.filter((d) => d.applicationId === application.id);
   const appLogs = db.auditLogs.filter((l) => l.entityId === application.id);
+  const onboardingFlow = db.onboardingFlows?.find((f) => f.applicationId === application.id);
+  const formattedTestDate = (() => {
+    const raw = onboardingFlow?.testDate;
+    if (!raw) return "";
+    const parts = raw.split("-");
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : raw;
+  })();
   const hasPassport = appDocs.some((d) => d.docType === "pasport_id" && d.verified);
 
   const [scores, setScores] = useState<Record<string, number>>(() => {
@@ -677,6 +685,25 @@ export default function CandidateDrawer({
                   <p className="text-[10px] text-slate-400">{t.salaryLabel}</p>
                   <p className="font-semibold text-emerald-700">{vacancy.salaryBand}</p>
                 </div>
+                <div>
+                  <p className="text-[10px] text-slate-400">
+                    {lang === "ru"
+                      ? "Тест-день (выбран кандидатом)"
+                      : "Sinov kuni (nomzod tanlagan)"}
+                  </p>
+                  {formattedTestDate ? (
+                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">
+                      <CalendarDays className="h-3 w-3" />
+                      {formattedTestDate}
+                    </span>
+                  ) : application.currentStage === "test_kuni" ? (
+                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      {lang === "ru" ? "Ожидает выбора" : "Tanlash kutilmoqda"}
+                    </span>
+                  ) : (
+                    <p className="font-semibold text-slate-400">—</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -689,6 +716,7 @@ export default function CandidateDrawer({
                   </h3>
                   <div className="divide-y divide-slate-100 text-xs">
                     {[
+                      ["Sinov kuni (nomzod tanlagan)", formattedTestDate || undefined],
                       ["Hudud / Viloyat", candidate.questionnaireData.region],
                       ["Shahar", candidate.questionnaireData.city],
                       ["Filial", candidate.questionnaireData.branch],

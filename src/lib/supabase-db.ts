@@ -1101,6 +1101,29 @@ export async function notifyReservedCandidatesGrouped(
   if (openedList.length === 0) return;
   const sb = getSupabase();
 
+  // 1. Faqat haqiqiy ZAXIRA (status='reserve') nomzodlarini olamiz (ishga kirgan, rad etilgan yoki faol nomzodlarga spam bormaydi)
+  const { data: reserveApps } = await sb
+    .from("ats_applications")
+    .select("candidate_id")
+    .eq("status", "reserve");
+  const reserveCandIds = Array.from(
+    new Set((reserveApps || []).map((a) => String(a.candidate_id)))
+  );
+  if (reserveCandIds.length === 0) return;
+
+  // 2. 7 kunlik anti-spam cooldown (bir nomzodga 7 kunda ko'pi bilan 1 marta xabar boradi)
+  const { data: setRow } = await sb
+    .from("ats_settings")
+    .select("data")
+    .eq("id", "default")
+    .maybeSingle();
+  const settingsData = (setRow?.data || {}) as Record<string, unknown>;
+  const notifiedMap: Record<string, number> = {
+    ...((settingsData.reserveNotifiedAt || {}) as Record<string, number>),
+  };
+  const nowMs = Date.now();
+  const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+
   const byCity = new Map<string, { position: string; branch: string }[]>();
   for (const item of openedList) {
     const key = item.city.trim().toLowerCase();
@@ -1109,10 +1132,14 @@ export async function notifyReservedCandidatesGrouped(
     byCity.set(key, arr);
   }
 
+  let updatedCooldowns = false;
+  const sentChatIds = new Set<string>();
+
   for (const [cityKey, items] of byCity.entries()) {
     const { data: cands } = await sb
       .from("ats_candidates")
-      .select("full_name, telegram_chat_id")
+      .select("id, full_name, telegram_chat_id")
+      .in("id", reserveCandIds)
       .ilike("city", cityKey)
       .not("telegram_chat_id", "is", null);
 
@@ -1123,13 +1150,32 @@ export async function notifyReservedCandidatesGrouped(
       .join("\n");
 
     for (const cand of cands) {
-      await sendTelegramMessage(
-        cand.telegram_chat_id,
+      const chatId = String(cand.telegram_chat_id || "").trim();
+      if (!chatId || sentChatIds.has(chatId)) continue;
+      const lastSent = Number(notifiedMap[chatId] || 0);
+      if (lastSent > 0 && nowMs - lastSent < SEVEN_DAYS_MS) continue;
+
+      sentChatIds.add(chatId);
+      const res = await sendTelegramMessage(
+        chatId,
         `🎉 <b>Yangi bo'sh ish o'rinlari ochildi!</b>\n\n` +
           `${listText}\n\n` +
           `Ariza topshirish uchun /start tugmasini bosing.`
       );
+      if (res.ok) {
+        notifiedMap[chatId] = nowMs;
+        updatedCooldowns = true;
+      }
     }
+  }
+
+  if (updatedCooldowns) {
+    await sb
+      .from("ats_settings")
+      .upsert(
+        { id: "default", data: { ...settingsData, reserveNotifiedAt: notifiedMap } },
+        { onConflict: "id" }
+      );
   }
 }
 
@@ -1832,7 +1878,8 @@ export async function syncErpStaffingRows(
 
   const existingById = new Map((existingAll || []).map((v) => [v.id, v]));
 
-  const toUpsertVacs: Record<string, unknown>[] = [];
+  const toInsertVacs: Record<string, unknown>[] = [];
+  const toUpdateVacs: { id: string; headcount: number; shift: string; salary_band: string }[] = [];
   const toInsertNotifs: Record<string, unknown>[] = [];
   const toCloseIds: string[] = [];
   const newlyOpened: { city: string; position: string; branch: string }[] = [];
@@ -1845,6 +1892,7 @@ export async function syncErpStaffingRows(
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")}`;
+    if (activeSheetIds.has(detId)) continue; // Bir xil branch+position dublikatlarini oldini olish
     activeSheetIds.add(detId);
 
     const deficit = row.planCount - row.factCount;
@@ -1852,7 +1900,7 @@ export async function syncErpStaffingRows(
 
     if (deficit > 0) {
       if (!existing || existing.status === "closed") {
-        toUpsertVacs.push({
+        toInsertVacs.push({
           id: detId,
           track: row.track,
           region,
@@ -1877,17 +1925,11 @@ export async function syncErpStaffingRows(
         });
         newlyOpened.push({ city, position: row.position, branch: row.branch });
       } else if (existing.headcount !== deficit) {
-        toUpsertVacs.push({
+        toUpdateVacs.push({
           id: detId,
-          track: row.track,
-          region,
-          city,
-          branch: row.branch,
-          position: row.position,
+          headcount: deficit,
           shift: row.shift || "To'liq kun",
           salary_band: row.salaryBand,
-          headcount: deficit,
-          status: existing.status,
         });
       }
     } else if (existing && existing.status !== "closed") {
@@ -1912,8 +1954,24 @@ export async function syncErpStaffingRows(
     }
   }
 
-  if (toUpsertVacs.length > 0) {
-    await sb.from("ats_vacancies").upsert(toUpsertVacs, { onConflict: "id" });
+  // MUHIM: Yangi vakansiyalar upsert xatosini tekshiramiz — agar saqlanmasa, bildirishnoma/Telegram spam yuborilmaydi!
+  let insertSucceeded = true;
+  if (toInsertVacs.length > 0) {
+    const { error: vacInsErr } = await sb
+      .from("ats_vacancies")
+      .upsert(toInsertVacs, { onConflict: "id" });
+    if (vacInsErr) {
+      insertSucceeded = false;
+      console.error("syncErpStaffingRows ats_vacancies upsert error:", vacInsErr.message);
+    }
+  }
+  if (toUpdateVacs.length > 0) {
+    for (const u of toUpdateVacs) {
+      await sb
+        .from("ats_vacancies")
+        .update({ headcount: u.headcount, shift: u.shift, salary_band: u.salary_band })
+        .eq("id", u.id);
+    }
   }
   if (toCloseIds.length > 0) {
     for (const cid of toCloseIds) {
@@ -1933,10 +1991,24 @@ export async function syncErpStaffingRows(
       }
     }
   }
-  if (toInsertNotifs.length > 0) {
-    await sb.from("ats_notifications").insert(toInsertNotifs);
+  if (insertSucceeded && toInsertNotifs.length > 0) {
+    // So'nggi 12 soat ichida aynan shu xabar yuborilgan bo'lsa qayta yozmaymiz
+    const twelveHoursAgo = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+    const { data: recentNotifs } = await sb
+      .from("ats_notifications")
+      .select("title, message")
+      .gte("created_at", twelveHoursAgo);
+    const recentSet = new Set(
+      (recentNotifs || []).map((n) => `${n.title}::${n.message}`)
+    );
+    const uniqueNotifs = toInsertNotifs.filter(
+      (n) => !recentSet.has(`${n.title}::${n.message}`)
+    );
+    if (uniqueNotifs.length > 0) {
+      await sb.from("ats_notifications").insert(uniqueNotifs);
+    }
   }
-  if (newlyOpened.length > 0) {
+  if (insertSucceeded && newlyOpened.length > 0) {
     await notifyReservedCandidatesGrouped(newlyOpened);
   }
 

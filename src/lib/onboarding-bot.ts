@@ -423,6 +423,79 @@ export async function handleOnboardingCallback(
     return true;
   }
 
+  if (data.startsWith("onboard:redoc_one:")) {
+    const parts = data.split(":");
+    const kind = parts[2]; // front | back | 3x4
+    const stepMap: Record<string, { step: string; label: string }> = {
+      front: { step: "kdp_fix_front", label: "Pasport / ID kartangizning OLD tomoni" },
+      back: { step: "kdp_fix_back", label: "Pasport / ID kartangizning ORQA tomoni" },
+      "3x4": { step: "kdp_fix_3x4", label: "3x4 o'lchamdagi rasmiy rasmingiz" },
+    };
+    const cfg = stepMap[kind];
+    if (cfg) {
+      await sb
+        .from("ats_onboarding_flows")
+        .update({ step: cfg.step, updated_at: new Date().toISOString() })
+        .eq("id", flow.id);
+      await editOrSendSimple(
+        token,
+        chatId,
+        msgId,
+        `📸 <b>Hujjatni qayta yuborish</b>\n\nIltimos, <b>${cfg.label}</b> rasmini aniq qilib (foto shaklida) yuboring:`
+      );
+    }
+    return true;
+  }
+
+  if (data.startsWith("onboard:applyfix:")) {
+    const parts = data.split(":");
+    const kind = parts[2]; // front | back | 3x4
+    const docId = parts.slice(3).join(":");
+    const { data: docRow } = await sb
+      .from("ats_documents")
+      .select("file_url")
+      .eq("id", docId)
+      .maybeSingle();
+    const match = String(docRow?.file_url || "").match(/file_id=([^&]+)/);
+    const fileId = match ? decodeURIComponent(match[1]) : "";
+    if (!fileId) {
+      await editOrSendSimple(
+        token,
+        chatId,
+        msgId,
+        "⚠️ Rasm topilmadi. Iltimos, hujjat rasmini qayta yuboring."
+      );
+      return true;
+    }
+
+    const patch: Record<string, unknown> = {
+      step: "awaiting_kdp_approval",
+      updated_at: new Date().toISOString(),
+    };
+    if (kind === "front") patch.passport_front_file_id = fileId;
+    else if (kind === "back") patch.passport_back_file_id = fileId;
+    else patch.photo_3x4_file_id = fileId;
+
+    await sb.from("ats_onboarding_flows").update(patch).eq("id", flow.id);
+    await notifyAllKdpStaff(token, flow.id);
+    await sb.from("ats_notifications").insert({
+      id: `notif-${Date.now()}`,
+      title: "Hujjat qayta yuborildi (KDP tekshiruvi)",
+      message: `${cand?.full_name || "Nomzod"} KDP izohidan so'ng yangilangan hujjatini yubordi.`,
+      type: "info",
+      read: false,
+      related_application_id: flow.application_id,
+    });
+    await editOrSendSimple(
+      token,
+      chatId,
+      msgId,
+      `✅ <b>Yangilangan hujjatingiz qabul qilindi va Kadrlar (KDP) bo'limiga qayta yuborildi!</b>\n\n` +
+        `Mutaxassis tasdiqlashi bilan sizga rasmiy tabrik xati yuboriladi.`
+    );
+    return true;
+  }
+
   if (data.startsWith("onboard:redocs:")) {
     await sb
       .from("ats_onboarding_flows")
@@ -503,6 +576,10 @@ export async function handleOnboardingMessage(
       "awaiting_passport_back",
       "awaiting_doc_phone",
       "awaiting_photo_3x4",
+      "kdp_revision_needed",
+      "kdp_fix_front",
+      "kdp_fix_back",
+      "kdp_fix_3x4",
     ])
     .order("updated_at", { ascending: false })
     .limit(1)
@@ -511,6 +588,114 @@ export async function handleOnboardingMessage(
   if (!flow) return false;
 
   const text = (msg.text || "").trim();
+
+  // 0. KDP izohidan keyin nomzod bitta hujjatni qayta yuborayotgan bo'lsa
+  if (
+    flow.step === "kdp_fix_front" ||
+    flow.step === "kdp_fix_back" ||
+    flow.step === "kdp_fix_3x4"
+  ) {
+    const photo = msg.photo?.[msg.photo.length - 1];
+    if (!photo) {
+      await sendTelegramMessage(
+        String(chatId),
+        "📸 Iltimos, yangilangan hujjatni <b>oddiy rasm (foto)</b> shaklida yuboring."
+      );
+      return true;
+    }
+
+    const url = `/api/telegram/file?file_id=${encodeURIComponent(photo.file_id)}`;
+    const is3x4 = flow.step === "kdp_fix_3x4";
+    const isFront = flow.step === "kdp_fix_front";
+    await addDocument({
+      applicationId: flow.application_id,
+      docType: is3x4 ? "photo_3x4" : "pasport_id",
+      fileName: is3x4 ? "rasm_3x4_qayta.jpg" : isFront ? "pasport_oldi_qayta.jpg" : "pasport_orqasi_qayta.jpg",
+      fileUrl: url,
+      actorName: "Telegram Bot",
+    });
+
+    const patch: Record<string, unknown> = {
+      step: "awaiting_kdp_approval",
+      updated_at: new Date().toISOString(),
+    };
+    if (isFront) patch.passport_front_file_id = photo.file_id;
+    else if (is3x4) patch.photo_3x4_file_id = photo.file_id;
+    else patch.passport_back_file_id = photo.file_id;
+
+    await sb.from("ats_onboarding_flows").update(patch).eq("id", flow.id);
+    await notifyAllKdpStaff(token, flow.id);
+
+    const { data: candRow } = await sb
+      .from("ats_candidates")
+      .select("full_name")
+      .eq("id", flow.candidate_id)
+      .maybeSingle();
+    await sb.from("ats_notifications").insert({
+      id: `notif-${Date.now()}`,
+      title: "Hujjat qayta yuborildi (KDP tekshiruvi)",
+      message: `${candRow?.full_name || "Nomzod"} KDP izohidan so'ng yangilangan hujjatini yubordi.`,
+      type: "info",
+      read: false,
+      related_application_id: flow.application_id,
+    });
+
+    await sendTelegramMessage(
+      String(chatId),
+      `✅ <b>Yangilangan hujjatingiz qabul qilindi va Kadrlar (KDP) bo'limiga qayta yuborildi!</b>\n\n` +
+        `Mutaxassis tasdiqlashi bilan sizga shu bot orqali rasmiy tabrik xati yuboriladi.`
+    );
+    return true;
+  }
+
+  // 0.5 KDP izohidan keyin nomzod tugmani bosmasdan to'g'ridan-to'g'ri rasm/xabar yuborsa
+  if (flow.step === "kdp_revision_needed") {
+    const photo = msg.photo?.[msg.photo.length - 1];
+    if (photo) {
+      const docId = `doc-fix-${Date.now().toString(36)}`;
+      const url = `/api/telegram/file?file_id=${encodeURIComponent(photo.file_id)}`;
+      await sb.from("ats_documents").insert({
+        id: docId,
+        application_id: flow.application_id,
+        doc_type: "pasport_id",
+        file_name: "hujjat_qayta.jpg",
+        file_url: url,
+        verified: false,
+      });
+      await sendTelegramMessage(
+        String(chatId),
+        `📸 <b>Rasmingiz qabul qilindi!</b>\nBu rasm qaysi hujjat o'rniga KDP bo'limiga yuborilsin?`,
+        {
+          inline_keyboard: [
+            [
+              { text: "🪪 Pasport OLDI", callback_data: `onboard:applyfix:front:${docId}` },
+              { text: "🪪 Pasport ORQASI", callback_data: `onboard:applyfix:back:${docId}` },
+            ],
+            [{ text: "📸 3x4 rasm", callback_data: `onboard:applyfix:3x4:${docId}` }],
+          ],
+        }
+      );
+      return true;
+    }
+
+    await sendTelegramMessage(
+      String(chatId),
+      `⚠️ KDP bo'limi hujjatlaringizni qayta yuborishingizni so'ragan.\n\nQaysi hujjatni qayta yubormoqchisiz? Tugmani tanlang yoki to'g'ridan-to'g'ri yangi <b>rasm (foto)</b> yuboring:`,
+      {
+        inline_keyboard: [
+          [
+            { text: "🪪 Pasport OLDI", callback_data: `onboard:redoc_one:front:${flow.id}` },
+            { text: "🪪 Pasport ORQASI", callback_data: `onboard:redoc_one:back:${flow.id}` },
+          ],
+          [
+            { text: "📸 3x4 rasm", callback_data: `onboard:redoc_one:3x4:${flow.id}` },
+            { text: "📄 Barchasini qayta yuborish", callback_data: `onboard:redocs:${flow.id}` },
+          ],
+        ],
+      }
+    );
+    return true;
+  }
 
   // 1. Sinov kuni so'rovnomasi
   if (flow.step === "in_survey") {

@@ -491,10 +491,17 @@ export async function handleKdpCommand(
         String(flow.chat_id),
         `⚠️ <b>Kadrlar bo'limi (KDP) hujjatlaringiz bo'yicha izoh qoldirdi:</b>\n\n` +
           `💬 <i>«${trimmed}»</i>\n\n` +
-          `Iltimos, hujjatlarni qayta yuklash uchun pastdagi tugmani bosing:`,
+          `👇 Qaysi hujjatni qayta yubormoqchisiz? Kerakli tugmani bosing (yoki yangi rasmni to'g'ridan-to'g'ri yuboring):`,
         {
           inline_keyboard: [
-            [{ text: "📸 Hujjatlarni qayta yuborish", callback_data: `onboard:redocs:${flow.id}` }],
+            [
+              { text: "🪪 Pasport OLDI", callback_data: `onboard:redoc_one:front:${flow.id}` },
+              { text: "🪪 Pasport ORQASI", callback_data: `onboard:redoc_one:back:${flow.id}` },
+            ],
+            [
+              { text: "📸 3x4 rasm", callback_data: `onboard:redoc_one:3x4:${flow.id}` },
+              { text: "📄 Barchasini qayta yuborish", callback_data: `onboard:redocs:${flow.id}` },
+            ],
           ],
         }
       );

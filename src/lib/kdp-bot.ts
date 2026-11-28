@@ -2,6 +2,7 @@ import { getSupabase, notifyApplicantsVacancyClosed } from "@/lib/supabase-db";
 import { appendHujjatlarRowToSheets, incrementStaffingFactInSheets } from "@/lib/google-sheets";
 import {
   buildAttendanceInstruction,
+  ERP_TELEGRAM_URL,
   ERP_TELEGRAM_USERNAME,
   HIRED_EMPLOYEE_KEYBOARD,
   syncHiredEmployeeToLms,
@@ -373,10 +374,8 @@ export async function finalizeHireAfterKdp(
     `🔗 ${lmsRes.lmsUrl}\n` +
     `👤 Login: <code>${lmsRes.login || "—"}</code>\n` +
     `🔑 Parol: <code>${lmsRes.password || "—"}</code>\n\n` +
-    `💼 <b>ERP tizimi (${ERP_TELEGRAM_USERNAME}):</b>\n` +
-    (erpCreds?.erpLogin
-      ? `👤 Login: <code>${erpCreds.erpLogin}</code>\n🔑 Parol: <code>${erpCreds.erpPassword || "—"}</code>\n\n`
-      : `<i>ERP login/parol KDP tomonidan alohida beriladi.</i>\n\n`) +
+    `💼 <b>ERP tizimi:</b>\n` +
+    `🔗 Havola: <b>${ERP_TELEGRAM_USERNAME}</b> (${ERP_TELEGRAM_URL})\n\n` +
     buildAttendanceInstruction(workType) +
     `\n\n👇 Istalgan vaqtda pastdagi <b>📚 LMS</b> va <b>💼 ERP</b> tugmalari orqali kirish ma'lumotlaringizni qayta ko'rishingiz mumkin.`;
 
@@ -605,15 +604,20 @@ export async function handleKdpCallback(
 
   if (data.startsWith("kdp:approve:")) {
     const flowId = data.replace("kdp:approve:", "");
-    await saveKdpSettingsPatch({
-      kdpPendingErp: { ...kdpPendingErp, [cid]: flowId },
-    });
-    await sendTelegramMessage(
-      cid,
-      `🔑 <b>Yakuniy bosqich: ERP (${ERP_TELEGRAM_USERNAME}) login va parolini kiriting</b>\n\n` +
-        `Masalan: <code>a.rahimov / Erp2026</code>\n` +
-        `<i>(Agar ERP hali tayyor bo'lmasa, shunchaki <code>-</code> deb yuboring — xodim baribir LMS login/paroli bilan ishga qabul qilinadi.)</i>`
-    );
+    if (kdpPendingErp[cid]) {
+      const nextPendingErp = { ...kdpPendingErp };
+      delete nextPendingErp[cid];
+      await saveKdpSettingsPatch({ kdpPendingErp: nextPendingErp });
+    }
+    const res = await finalizeHireAfterKdp(token, flowId, `KDP (${fromName})`);
+    const doneText = res.ok
+      ? `✅ <b>Rasmiylashtirildi va LMSga uzatildi!</b>\n` +
+        `👤 <b>${res.candidateName || "Nomzod"}</b> ishga qabul qilindi.\n` +
+        `📚 LMS Login: <code>${res.lmsLogin || "—"}</code> | Parol: <code>${res.lmsPassword || "—"}</code>\n` +
+        `💼 ERP havola yuborildi: ${ERP_TELEGRAM_USERNAME}\n` +
+        `👮 Tasdiqladi: ${fromName}`
+      : "⚠️ Nomzod topilmadi yoki allaqachon rasmiylashtirilgan.";
+    await sendTelegramMessage(cid, doneText);
     return true;
   }
 

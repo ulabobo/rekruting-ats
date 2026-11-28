@@ -186,14 +186,10 @@ export async function handleHiredEmployeeMenuCommand(
   }
 
   if (isErpBtn) {
-    const erpLogin = qd.erp_login || "— (KDP dan aniqlang)";
-    const erpPass = qd.erp_password || "—";
     await sendTelegramMessage(
       String(chatId),
       `💼 <b>AURA ERP tizimi</b>\n\n` +
-        `🤖 Telegram bot: <b>${ERP_TELEGRAM_USERNAME}</b> (${ERP_TELEGRAM_URL})\n` +
-        `👤 Login: <code>${erpLogin}</code>\n` +
-        `🔑 Parol: <code>${erpPass}</code>\n\n` +
+        `🔗 Havola: <b>${ERP_TELEGRAM_USERNAME}</b> (${ERP_TELEGRAM_URL})\n\n` +
         buildAttendanceInstruction(workType),
       HIRED_EMPLOYEE_KEYBOARD
     );
